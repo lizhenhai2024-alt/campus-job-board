@@ -7,23 +7,36 @@
     major: '英语',
     languages: ['英语'],
     targetCities: ['深圳','广州','上海','武汉','长沙','北京','杭州','苏州'],
-    preferredDirections: ['GTM','PMO','项目管理','国际业务','海外业务','跨境电商','供应链','国际物流','品牌','内容运营','用户运营','商业分析','HRBP'],
+    preferredDirections: ['GTM','PMO','项目管理','国际业务','海外业务','跨境电商','供应链','国际物流','产品运营','业务运营','品牌','内容运营','用户运营','商业分析','HRBP'],
     experiences: {
-      astemo: ['项目进度','项目变更','变更审批','Gate评审','跨部门协同','项目节点','流程','职责梳理','项目管理','PMO'],
+      astemo: ['项目进度','项目变更','变更审批','Gate评审','跨部门协同','项目节点','流程','职责梳理','项目管理','PMO','产品管理'],
       overseasRail: ['海外业务','英文资料','竞品分析','市场研究','业务布局','海外展会','客户信息','台账','国际业务','海外市场','GTM'],
       bilingualMuseum: ['双语','中英文讲解','跨文化','客户沟通','受众沟通','英文表达'],
       translation: ['翻译','本地化','术语','中英文稿件','质量控制','交付']
     }
   };
 
+  const TITLE_DIRS = [
+    ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培/i],
+    ['国际物流·供应链管培', /国际物流|物流.*管培|物流商务|物流运营|供应链|采购管理|供应链管培/i],
+    ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
+    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销/i],
+    ['PMO·项目管理', /\bPMO\b|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
+    ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营/i],
+    ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
+    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场/i],
+    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析/i]
+  ];
+
   const DIRS = [
     ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销/i],
     ['PMO·项目管理', /PMO|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
     ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
     ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
-    ['国际物流·供应链管培', /国际物流|物流运营|供应链|采购管理|供应链管培|物流管培/i],
-    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营/i],
-    ['经营·商业分析', /经营分析|商业分析|战略运营|业务运营|经营管理|策略分析/i],
+    ['国际物流·供应链管培', /国际物流|物流运营|供应链|采购管理|供应链管培|物流.*管培|物流商务/i],
+    ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营/i],
+    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场/i],
+    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析/i],
     ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培/i],
     ['其他', /.*/i]
   ];
@@ -31,6 +44,7 @@
   const CITY_SCORE = {深圳:10,广州:9,上海:9,武汉:8,长沙:8,北京:7,杭州:7,苏州:7};
   const TECH_TITLE = /研发工程师|算法工程师|软件工程师|硬件工程师|机械工程师|电气工程师|结构工程师|测试工程师|实施工程师|开发工程师/i;
   const LOW_VALUE = /纯翻译|翻译专员|行政|文员|跟单|客服专员|销售代表|渠道销售|区域销售|纯销售/i;
+  const SPECIALIST_NON_TARGET = /法务|财务|会计|审计|税务|EHS|安全工程|质量工程|临床|医学|律师/i;
   const INTERNATIONAL = /英语|英文|English|CET|海外|国际|全球|跨境|出海|GTM|跨文化|海外客户|国际客户/i;
   const MARKET_BUSINESS = /市场营销|国际商务|工商管理|广告|新闻传播|传播学|国际贸易|经济|金融|商业分析|供应链|物流管理|文科|社科/i;
   const STEM = /理工科|计算机|软件|电子|电气|机械|自动化|材料|数学|统计|数据科学|工业工程|物流工程/i;
@@ -56,8 +70,13 @@
   }
 
   function direction(job){
-    const t=[job.title, ...arr(job.roleFamily), job.description].filter(Boolean).join(' ');
-    for(const [name, rx] of DIRS){ if(rx.test(t)) return name; }
+    const title=String(job.title||'');
+    if(SPECIALIST_NON_TARGET.test(title)) return '其他';
+    for(const [name,rx] of TITLE_DIRS){ if(rx.test(title)) return name; }
+    const family=[...arr(job.roleFamily)].join(' ');
+    for(const [name,rx] of DIRS){ if(name!=='其他' && rx.test(family)) return name; }
+    const desc=String(job.description||'');
+    for(const [name,rx] of DIRS){ if(rx.test(desc)) return name; }
     return '其他';
   }
 
@@ -140,6 +159,7 @@
       '跨境电商运营':27,
       '外贸·海外业务':27,
       '国际物流·供应链管培':24,
+      '产品·业务运营':23,
       '品牌·内容·用户运营':23,
       '经营·商业分析':22,
       'HR·HRBP':19,
@@ -147,8 +167,10 @@
     }[dir]||14;
     if(/项目推进|项目协调|Gate|变更|跨部门/.test(t) && dir==='PMO·项目管理') base=Math.min(30,base+2);
     if(/海外市场|市场策略|产品上市|go[- ]?to[- ]?market|竞品|市场洞察/i.test(t) && dir==='GTM·市场策略') base=Math.min(30,base+1);
+    if(/用户|产品迭代|需求分析|产品规划|业务流程/.test(t) && dir==='产品·业务运营') base=Math.min(26,base+2);
     if(/销售跟单|订单跟进|客服|电话销售|纯销售|销售指标|陌拜/.test(t)) base=Math.min(base,12);
     if(LOW_VALUE.test(title)) base=Math.min(base,10);
+    if(SPECIALIST_NON_TARGET.test(title)) base=Math.min(base,10);
     if(TECH_TITLE.test(title)) base=Math.min(base,5);
     return Math.max(0,Math.min(30,base));
   }
@@ -164,6 +186,7 @@
     if(INTERNATIONAL.test(t)) score=Math.min(20,score+2);
     if(/英语.*工作语言|英文.*工作语言|英文沟通|英语沟通|海外客户|国际客户/.test(t)) score=Math.min(20,score+1);
     if(/小语种.*优先|日语.*优先|西语.*优先|德语.*优先|法语.*优先|韩语.*优先/.test(t)) score=Math.max(8,score-1);
+    if(SPECIALIST_NON_TARGET.test(String(job.title||''))) score=Math.min(score,8);
     return Math.max(0,Math.min(20,score));
   }
 
@@ -185,6 +208,9 @@
     } else if(dir==='跨境电商运营'){
       score=10+Math.min(8,rail*2)+Math.min(3,museum)+Math.min(3,trans);
       if(rail>=2) direct.push('中车海外业务经历可迁移到跨境业务场景');
+    } else if(dir==='产品·业务运营'){
+      score=10+Math.min(7,ast)+Math.min(4,rail)+Math.min(2,museum);
+      if(ast>=3) direct.push('安斯泰莫产品管理/流程协同经历可迁移到产品与业务运营');
     } else if(dir==='品牌·内容·用户运营'){
       score=9+Math.min(6,rail)+Math.min(5,museum*2)+Math.min(5,trans*2);
       if(museum>=2||trans>=2) direct.push('双语讲解/翻译经历支持英文内容与用户沟通');
@@ -209,6 +235,7 @@
       '外贸·海外业务':14,
       '跨境电商运营':14,
       '国际物流·供应链管培':13,
+      '产品·业务运营':12,
       '品牌·内容·用户运营':12,
       '经营·商业分析':12,
       'HR·HRBP':9,
@@ -216,6 +243,7 @@
     }[dir]||6;
     const t=sourceText(job);
     if(LOW_VALUE.test(String(job.title||'')) || /纯销售|销售跟单|行政文员/.test(t)) score=Math.min(score,4);
+    if(SPECIALIST_NON_TARGET.test(String(job.title||''))) score=Math.min(score,4);
     return score;
   }
 
@@ -247,7 +275,7 @@
     if(!gateResult.passed) return '不符合硬条件';
     if(q.status==='INVALID') return '数据待修复';
     if(fit>=92 && q.score>=8 && parts.responsibility>=27 && parts.majorLanguage>=16 && parts.experience>=21 && exp.strongDirect) return 'S++';
-    if(fit>=85) return 'S';
+    if(fit>=85 && q.score>=7 && parts.responsibility>=25 && parts.majorLanguage>=12 && parts.experience>=15) return 'S';
     if(fit>=75) return 'A';
     if(fit>=65) return 'B';
     if(fit>=50) return 'C';
