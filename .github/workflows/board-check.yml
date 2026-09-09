@@ -10,6 +10,7 @@ on:
       - 'scoring-v1.1-language-patch.js'
       - 'scoring-v1.2-calibration-patch.js'
       - 'ui-v1.2-patch.js'
+      - 'intelligence-v1.3-patch.js'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
       - 'calibrate-v1.1.js'
@@ -39,8 +40,10 @@ jobs:
         run: node --check scoring-v1.2-calibration-patch.js
       - name: Check app syntax
         run: node --check app-v1.1.js
-      - name: Check UI patch syntax
-        run: node --check ui-v1.2-patch.js
+      - name: Check UI patches syntax
+        run: |
+          node --check ui-v1.2-patch.js
+          node --check intelligence-v1.3-patch.js
       - name: Check calibration syntax
         run: |
           node --check calibrate-v1.1.js
@@ -51,6 +54,12 @@ jobs:
         run: node scoring-v1.2.test.js
       - name: Calibrate V1.2 against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
+      - name: Verify intelligence source files exist
+        run: |
+          test -f AI_Job/src/data/company-risk-history.js
+          test -f AI_Job/src/core/compensation.js
+          grep -q 'monthlySalary' AI_Job/scripts/enrich-job-compensation.mjs
+          grep -q 'annualSalary' AI_Job/scripts/enrich-job-compensation.mjs
       - name: Verify production wiring
         run: |
           grep -q 'scoring-v1.1.js' index.html
@@ -58,3 +67,5 @@ jobs:
           grep -q 'scoring-v1.2-calibration-patch.js' index.html
           grep -q 'app-v1.1.js' index.html
           grep -q 'ui-v1.2-patch.js' index.html
+          grep -q 'intelligence-v1.3-patch.js' index.html
+          ! grep -q 'CampusScoring=' intelligence-v1.3-patch.js
