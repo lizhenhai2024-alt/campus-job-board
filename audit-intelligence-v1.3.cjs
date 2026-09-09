@@ -13,6 +13,7 @@ if (!S?.evaluate) throw new Error('CampusScoring V1.2 not loaded');
 
 const LEVEL_RANK = { 'S++': 6, S: 5, A: 4, B: 3, C: 2, D: 1 };
 const PRIORITY = new Set(['S++', 'S', 'A', 'B']);
+const COVERAGE_TARGETS = { riskCompanies: 0.50, salaryJobs: 0.50 };
 
 function companyKey(value = '') {
   return String(value)
@@ -36,6 +37,11 @@ function profileFor(company, profiles) {
 
 function pct(n, d) {
   return d ? `${Math.round((n / d) * 100)}%` : '0%';
+}
+
+function targetGap(current, total, target) {
+  if (!total) return 0;
+  return Math.max(0, Math.ceil(total * target) - current);
 }
 
 (async () => {
@@ -101,6 +107,7 @@ function pct(n, d) {
   console.log(`salaryCoveredCompanies=${salaryCoveredCompanies}/${companyRows.length} (${pct(salaryCoveredCompanies, companyRows.length)})`);
   console.log(`riskCoveredCompanies=${riskCoveredCompanies}/${companyRows.length} (${pct(riskCoveredCompanies, companyRows.length)})`);
   console.log(`AorB-evidence-riskCompanies=${highConfidenceCovered}/${companyRows.length} (${pct(highConfidenceCovered, companyRows.length)})`);
+  console.log(`coverageTarget: riskCompanies>=50% (gap ${targetGap(riskCoveredCompanies, companyRows.length, COVERAGE_TARGETS.riskCompanies)} companies); salaryJobs>=50% (gap ${targetGap(salaryKnownJobs, priorityJobs.length, COVERAGE_TARGETS.salaryJobs)} jobs)`);
 
   console.log('\n--- PRIORITY COMPANIES MISSING RISK INTELLIGENCE ---');
   const missingRisk = companyRows.filter((c) => c.events.length === 0).slice(0, 30);
@@ -126,5 +133,5 @@ function pct(n, d) {
     console.log(`${level}\tP${e.priorityScore}\t${job.company}\t${job.title}\t${job.city || '待核'}\t${job.sourceType || 'unknown'}`);
   }
 
-  console.log('\nNOTE: “missing risk intelligence” means no evidence-backed event is recorded; it does NOT mean the company is risk-free.');
+  console.log('\nNOTE: “missing risk intelligence” means no evidence-backed event is recorded; it does NOT mean the company is risk-free. Coverage targets are research goals only and never change S/A/B or fail CI.');
 })();
