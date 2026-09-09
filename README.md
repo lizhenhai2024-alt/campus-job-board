@@ -1,5 +1,7 @@
 # campus-job-board · 2027届校招机会看板
 
+![CI](https://github.com/lizhenhai2024-alt/campus-job-board/actions/workflows/board-check.yml/badge.svg) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 面向 **2027 届校招**的岗位适配度评价看板，为候选人（湖南大学英语本科）提供岗位的资格判断、适配评分、风险调整与投递推荐排序。
 
 > 数据职责分工：`AI_Job` 负责岗位发现、官网/ATS 抓取、去重、JD 结构化和来源核验；本仓库独立负责最终资格判断、适配评价、风险调整和推荐排序。
@@ -52,4 +54,4 @@ cd campus-job-board
 
 ## License
 
-见 [LICENSE](LICENSE)。
+[MIT](LICENSE) © 2026 Zhenhai Li/Bruce
