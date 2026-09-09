@@ -83,4 +83,9 @@ jobs:
           grep -q 'intelligence-v1.3-patch.js' index.html
           grep -q 'company-risk-history-priority.js' intelligence-v1.3-patch.js
           grep -q 'priorityCompanyRiskHistory' intelligence-v1.3-patch.js
+          grep -q 'RISK_SOURCE_GUIDE' intelligence-v1.3-patch.js
+          grep -q 'CampusShame' intelligence-v1.3-patch.js
+          grep -q '牛客' intelligence-v1.3-patch.js
+          grep -q '脉脉' intelligence-v1.3-patch.js
+          grep -q '默认按 C 级二手社区线索处理' intelligence-v1.3-patch.js
           ! grep -q 'CampusScoring=' intelligence-v1.3-patch.js
