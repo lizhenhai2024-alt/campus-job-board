@@ -63,11 +63,15 @@ jobs:
       - name: Verify intelligence source files exist
         run: |
           test -f AI_Job/src/data/company-risk-history.js
+          test -f AI_Job/src/data/company-risk-history-priority.js
+          test -f AI_Job/src/core/company-risk.js
           test -f AI_Job/src/core/compensation.js
           test -f AI_Job/scripts/enrich-job-compensation.mjs
           grep -q 'monthlySalary' AI_Job/src/core/compensation.js
           grep -q 'annualSalary' AI_Job/src/core/compensation.js
           grep -q 'companyRiskHistory' AI_Job/src/data/company-risk-history.js
+          grep -q 'priorityCompanyRiskHistory' AI_Job/src/data/company-risk-history-priority.js
+          grep -q 'mergedCompanyRiskHistory' AI_Job/src/core/company-risk.js
       - name: Verify production wiring
         run: |
           grep -q 'scoring-v1.1.js' index.html
@@ -77,4 +81,6 @@ jobs:
           grep -q 'app-v1.1.js' index.html
           grep -q 'ui-v1.2-patch.js' index.html
           grep -q 'intelligence-v1.3-patch.js' index.html
+          grep -q 'company-risk-history-priority.js' intelligence-v1.3-patch.js
+          grep -q 'priorityCompanyRiskHistory' intelligence-v1.3-patch.js
           ! grep -q 'CampusScoring=' intelligence-v1.3-patch.js
