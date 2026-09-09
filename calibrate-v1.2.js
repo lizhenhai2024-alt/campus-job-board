@@ -1,7 +1,5 @@
 const fs=require('node:fs');
-require('./scoring-v1.1.js');
-require('./scoring-v1.1-language-patch.js');
-require('./scoring-v1.2-calibration-patch.js');
+require('./scoring.js');
 const S=globalThis.CampusScoring;
 
 const path=process.argv[2]||'AI_Job/src/data/live-jobs.js';

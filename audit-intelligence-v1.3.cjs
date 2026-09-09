@@ -4,10 +4,7 @@
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
-require('./scoring-v1.1.js');
-require('./scoring-v1.1-language-patch.js');
-require('./scoring-v1.2-calibration-patch.js');
-require('./scoring-v1.3-quality-patch.js');
+require('./scoring.js');
 
 const S = globalThis.CampusScoring;
 if (!S?.evaluate) throw new Error('CampusScoring V1.3 not loaded');

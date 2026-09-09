@@ -25,14 +25,25 @@
 | 文件 | 作用 |
 |---|---|
 | `index.html` | 看板页面（KPI 卡片、筛选、岗位列表、流程管线、图表、Offer 管理） |
-| `scoring-v1.1.js` 及 patches | 评分引擎与语言 / 校准 / 质量补丁 |
-| `app-v1.1.js` / `ui-v1.2-patch.js` | 应用逻辑与 UI 增强 |
-| `intelligence-v1.3-patch.js` | 岗位薪资与公司风险情报层 |
-| `audit-intelligence-v1.3.cjs` | S-A-B 情报覆盖审计 |
-| `calibrate-v1.1.js` / `calibrate-v1.2.js` | 推荐等级校准 |
+| `scoring.js` | 评分引擎（原 `scoring-v1.1.js` + 语言 / 校准 / 质量三层 patch 合并，逻辑未变） |
+| `app.js` | 应用逻辑 + UI + 情报层渲染（原 `app-v1.1.js` + `ui-v1.2-patch.js` + `intelligence-v1.3-patch.js` 合并重写，岗位薪资、公司历史风险、来源分级说明都在这一个文件里） |
+| `api/state.js` | 云同步后端（Vercel Serverless Function + Vercel Marketplace 的 Upstash Redis） |
+| `audit-intelligence-v1.3.cjs` | S-A-B 情报覆盖审计（开发期诊断脚本，已改引用 `scoring.js`） |
+| `calibrate-v1.1.js` / `calibrate-v1.2.js` | 推荐等级校准（开发期诊断脚本，保留供历史对照，已改引用 `scoring.js`） |
 | `scoring-v1.1/v1.2/v1.3-quality.test.js` | 评分边界回归测试 |
 | `评价规则_…V1.2.md` / `情报层规则_…V1.3.md` | 规则文档（冻结版本） |
 | `.github/workflows/board-check.yml` | CI：语法检查、测试、实时岗位池校准、情报覆盖审计、接线校验 |
+
+## 云同步设置（可选）
+
+默认「我的投递」「Offer 对比」只存在当前浏览器 localStorage。要跨设备同步：
+
+1. Vercel 项目 → **Storage** → Create Database → 选一个 Redis/KV 类的 Marketplace 集成（如 Upstash for Redis），绑定到本项目（自动注入 `KV_REST_API_URL` / `KV_REST_API_TOKEN`，无需手动填）。
+2. Vercel 项目 → **Settings → Environment Variables** → 新增 `BOARD_SYNC_SECRET`，值自己定一个密码。
+3. 重新部署一次（改环境变量后 Vercel 需要重新部署才生效）。
+4. 打开看板 →「我的投递」页 → 云同步面板 → 输入同一个密码 → 启用同步。每台设备都输入同一个密码即可自动互相同步。
+
+不设置以上步骤也完全不影响看板本身使用，只是投递记录不会跨设备同步（和之前一样）。
 
 ## 数据依赖
 

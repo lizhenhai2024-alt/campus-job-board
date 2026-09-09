@@ -1,6 +1,5 @@
 const assert = require('node:assert/strict');
-const S = require('./scoring-v1.1.js');
-require('./scoring-v1.1-language-patch.js');
+const S = require('./scoring.js');
 
 function job(overrides={}){
   return {

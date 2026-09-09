@@ -1,7 +1,5 @@
 const assert=require('node:assert/strict');
-require('./scoring-v1.1.js');
-require('./scoring-v1.1-language-patch.js');
-require('./scoring-v1.2-calibration-patch.js');
+require('./scoring.js');
 const S=globalThis.CampusScoring;
 const now=new Date('2026-09-10T00:00:00+08:00');
 
