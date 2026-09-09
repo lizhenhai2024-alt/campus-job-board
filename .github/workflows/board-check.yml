@@ -5,13 +5,8 @@ on:
     branches: [main]
     paths:
       - 'index.html'
-      - 'app-v1.1.js'
-      - 'scoring-v1.1.js'
-      - 'scoring-v1.1-language-patch.js'
-      - 'scoring-v1.2-calibration-patch.js'
-      - 'scoring-v1.3-quality-patch.js'
-      - 'ui-v1.2-patch.js'
-      - 'intelligence-v1.3-patch.js'
+      - 'app.js'
+      - 'scoring.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
@@ -36,16 +31,9 @@ jobs:
         with:
           node-version: 24
       - name: Check scoring syntax
-        run: |
-          node --check scoring-v1.1.js
-          node --check scoring-v1.1-language-patch.js
-          node --check scoring-v1.2-calibration-patch.js
-          node --check scoring-v1.3-quality-patch.js
-      - name: Check app and UI syntax
-        run: |
-          node --check app-v1.1.js
-          node --check ui-v1.2-patch.js
-          node --check intelligence-v1.3-patch.js
+        run: node --check scoring.js
+      - name: Check app syntax
+        run: node --check app.js
       - name: Check calibration and intelligence audit syntax
         run: |
           node --check calibrate-v1.1.js
@@ -56,7 +44,7 @@ jobs:
           node scoring-v1.1.test.js
           node scoring-v1.2.test.js
           node scoring-v1.3-quality.test.js
-      - name: Calibrate V1.2 against current live job pool
+      - name: Calibrate against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
       - name: Audit S-A-B intelligence coverage
         run: node audit-intelligence-v1.3.cjs AI_Job
@@ -74,18 +62,13 @@ jobs:
           grep -q 'mergedCompanyRiskHistory' AI_Job/src/core/company-risk.js
       - name: Verify production wiring
         run: |
-          grep -q 'scoring-v1.1.js' index.html
-          grep -q 'scoring-v1.1-language-patch.js' index.html
-          grep -q 'scoring-v1.2-calibration-patch.js' index.html
-          grep -q 'scoring-v1.3-quality-patch.js' index.html
-          grep -q 'app-v1.1.js' index.html
-          grep -q 'ui-v1.2-patch.js' index.html
-          grep -q 'intelligence-v1.3-patch.js' index.html
-          grep -q 'company-risk-history-priority.js' intelligence-v1.3-patch.js
-          grep -q 'priorityCompanyRiskHistory' intelligence-v1.3-patch.js
-          grep -q 'RISK_SOURCE_GUIDE' intelligence-v1.3-patch.js
-          grep -q 'CampusShame' intelligence-v1.3-patch.js
-          grep -q '牛客' intelligence-v1.3-patch.js
-          grep -q '脉脉' intelligence-v1.3-patch.js
-          grep -q '默认按 C 级二手社区线索处理' intelligence-v1.3-patch.js
-          ! grep -q 'CampusScoring=' intelligence-v1.3-patch.js
+          grep -q 'scoring.js' index.html
+          grep -q 'app.js' index.html
+          ! grep -q 'scoring-v1.1.js' index.html
+          grep -q 'company-risk-history-priority.js' app.js
+          grep -q 'priorityCompanyRiskHistory' app.js
+          grep -q 'RISK_SOURCE_GUIDE' app.js
+          grep -q 'CampusShame' app.js
+          grep -q '牛客' app.js
+          grep -q '脉脉' app.js
+          grep -q '默认按 C 级二手社区线索处理' app.js
