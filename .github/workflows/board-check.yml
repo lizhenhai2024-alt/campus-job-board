@@ -11,6 +11,7 @@ on:
       - 'scoring-v1.2-calibration-patch.js'
       - 'ui-v1.2-patch.js'
       - 'intelligence-v1.3-patch.js'
+      - 'audit-intelligence-v1.3.cjs'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
       - 'calibrate-v1.1.js'
@@ -44,16 +45,19 @@ jobs:
         run: |
           node --check ui-v1.2-patch.js
           node --check intelligence-v1.3-patch.js
-      - name: Check calibration syntax
+      - name: Check calibration and intelligence audit syntax
         run: |
           node --check calibrate-v1.1.js
           node --check calibrate-v1.2.js
+          node --check audit-intelligence-v1.3.cjs
       - name: Run V1.1 boundary tests
         run: node scoring-v1.1.test.js
       - name: Run V1.2 recommendation tests
         run: node scoring-v1.2.test.js
       - name: Calibrate V1.2 against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
+      - name: Audit S-A-B intelligence coverage
+        run: node audit-intelligence-v1.3.cjs AI_Job
       - name: Verify intelligence source files exist
         run: |
           test -f AI_Job/src/data/company-risk-history.js
