@@ -49,8 +49,12 @@ function targetGap(current, total, target) {
   const aiRoot = path.resolve(process.argv[2] || 'AI_Job');
   const liveMod = await import(`${pathToFileURL(path.join(aiRoot, 'src/data/live-jobs.js')).href}?t=${Date.now()}`);
   const riskMod = await import(`${pathToFileURL(path.join(aiRoot, 'src/data/company-risk-history.js')).href}?t=${Date.now()}`);
+  const priorityRiskMod = await import(`${pathToFileURL(path.join(aiRoot, 'src/data/company-risk-history-priority.js')).href}?t=${Date.now()}`);
   const jobs = Array.isArray(liveMod.liveJobs) ? liveMod.liveJobs : [];
-  const profiles = Array.isArray(riskMod.companyRiskHistory) ? riskMod.companyRiskHistory : [];
+  const profiles = [
+    ...(Array.isArray(riskMod.companyRiskHistory) ? riskMod.companyRiskHistory : []),
+    ...(Array.isArray(priorityRiskMod.priorityCompanyRiskHistory) ? priorityRiskMod.priorityCompanyRiskHistory : [])
+  ];
   const now = new Date();
 
   const evaluated = jobs.map((job) => {
