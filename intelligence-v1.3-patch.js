@@ -1,6 +1,9 @@
 (()=>{'use strict';
 const LIVE_URLS=['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/live-jobs.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/live-jobs.js'];
-const RISK_URLS=['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-risk-history.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-risk-history.js'];
+const RISK_SOURCES=[
+ {exportName:'companyRiskHistory',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-risk-history.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-risk-history.js']},
+ {exportName:'priorityCompanyRiskHistory',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-risk-history-priority.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-risk-history-priority.js']}
+];
 let jobs=[],riskProfiles=[],ready=false,scheduled=false;
 const jobById=new Map();
 
@@ -10,7 +13,8 @@ function sameCompany(a,b){const x=companyKey(a),y=companyKey(b);return Boolean(x
 function parseJobs(raw){const a=raw.indexOf('export const liveJobs ='),s=raw.indexOf('[',a),m=raw.indexOf('export const discoveryMeta',s),segment=raw.slice(s,m),end=segment.lastIndexOf('];');if(a<0||s<0||m<0||end<0)throw Error('岗位池格式异常');return JSON.parse(segment.slice(0,end+1));}
 async function fetchText(url){const c=new AbortController(),timer=setTimeout(()=>c.abort(),9000);try{const res=await fetch(url,{cache:'no-store',signal:c.signal});if(!res.ok)throw Error(String(res.status));return await res.text();}finally{clearTimeout(timer)}}
 async function loadJobs(){for(const url of LIVE_URLS){try{return parseJobs(await fetchText(url))}catch(e){console.warn('[intelligence jobs]',e)}}return[]}
-async function loadRisk(){for(const url of RISK_URLS){let blobUrl='';try{const raw=await fetchText(url);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);return Array.isArray(mod.companyRiskHistory)?mod.companyRiskHistory:[]}catch(e){console.warn('[intelligence risk]',e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}return[]}
+async function loadRiskSet(source){for(const url of source.urls){let blobUrl='';try{const raw=await fetchText(url);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);const rows=mod[source.exportName];return Array.isArray(rows)?rows:[]}catch(e){console.warn(`[intelligence risk ${source.exportName}]`,e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}return[]}
+async function loadRisk(){const groups=await Promise.all(RISK_SOURCES.map(loadRiskSet));return groups.flat()}
 function riskFor(company){return riskProfiles.find(p=>sameCompany(p.company,company)||(p.aliases||[]).some(a=>sameCompany(a,company)))||null}
 function typeLabel(type){return({layoff:'裁员/优化',restructuring:'组织重组/人员调整',intern_conversion:'实习转正/留用风险',offer_change:'校招毁约/缩招',work_intensity:'长期加班/工作强度争议',compensation:'薪资倒挂/调薪争议'})[type]||'历史事件'}
 function levelLabel(level){return({A:'一手材料',B:'高可信媒体/公司回应',C:'社区经验线索',D:'未经核实传闻'})[level]||'证据待核'}
