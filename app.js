@@ -34,11 +34,11 @@ const NORMAL_LEVELS=new Set(['S++','S','A','B','C','D']);
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
-const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],filter:{q:'',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部'},status:persisted.status||{},offers:persisted.offers||[],updatedAt:persisted.updatedAt||0,selected:null,limit:40,sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
+const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],filter:{q:'',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部'},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:40,sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
 const app=document.getElementById('app');
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uniq=a=>[...new Set(a.filter(Boolean))];
-function save(){S.updatedAt=Date.now();localStorage.setItem(STORAGE,JSON.stringify({status:S.status,offers:S.offers,updatedAt:S.updatedAt}));pushRemote()}
+function save(){S.updatedAt=Date.now();localStorage.setItem(STORAGE,JSON.stringify({status:S.status,offerScores:S.offerScores,updatedAt:S.updatedAt}));pushRemote()}
 const levelClass=l=>l==='S++'||l==='S'?'s':l==='A'?'a':l==='B'?'b':'c';
 const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${l}`:l;
 
@@ -90,7 +90,9 @@ function jobCard(j){
   const highRisk=events.filter(e=>['A','B'].includes(e.evidenceLevel)&&e.sentiment==='negative').length;
   const internRisk=events.filter(e=>e.type==='intern_conversion').length;
   const fit=v.dataQuality.status!=='INVALID'?`${v.fit.score} / 100`:'—';
-  return`<article class="card job"><div><div class="company">${esc(j.company||'待核公司')}</div><div class="jobtitle">${esc(j.title||'待核岗位')}</div><div class="meta"><span>📍 ${esc(j.city||'待核')}</span><span>🧭 ${esc(v.direction)}</span><span>🗓 ${esc(j.deadline||'待核')}</span><span>${esc(j.source||'来源待核')}</span></div><div class="decision-grid"><div class="decision-cell"><span>岗位方向</span><b>${esc(v.direction)}</b></div><div class="decision-cell fit"><span>候选人适配</span><b>${fit}</b></div><div class="decision-cell priority"><span>投递优先分</span><b>${esc(v.priorityScore)}</b></div></div><div class="decision-why"><strong>推荐判断</strong><span>${esc(reason)}</span></div><div class="tags">${salary?`<span class="tag ok" title="薪资来源：${esc(comp.sourceLabel||'岗位来源')}；可信度：${esc(confidenceLabel(comp))}">💰 ${esc(salary)}</span><span class="tag ${comp.confidence==='high'?'ok':'warn'}">${comp.confidence==='high'?'薪资·高可信':'薪资·待官网复核'}</span>`:''}<span class="tag ${j.sourceType==='official'?'ok':'warn'}" data-secondary="1">${j.sourceType==='official'?'官方来源':'二手来源 · 投递前回官网'}</span><span data-secondary="1">${qualityTag(v.dataQuality)}</span>${risk?`<span class="tag warn" data-risk="1">风险 -${risk}</span>`:''}${highRisk?`<span class="tag warn" data-risk="1">历史风险 A/B·${highRisk}</span>`:''}${internRisk?`<span class="tag" data-risk="1">实习留用线索 ${internRisk}</span>`:''}</div></div><div class="match"><div><div class="level"><span class="pill ${levelClass(v.level)}">${esc(recLabel(v.level))}</span></div></div><div class="actions">${j.sourceUrl?`<a class="btn ${j.sourceType==='official'?'primary':'soft'}" target="_blank" rel="noopener" href="${esc(j.sourceUrl)}">${j.sourceType==='official'?'立即投递':'查看来源'}</a>`:''}<button class="btn" data-detail="${esc(j.id)}">评价详情</button><select class="status" data-status="${esc(j.id)}"><option value="">投递状态</option>${STAGES.map(x=>`<option ${S.status[j.id]===x?'selected':''}>${x}</option>`).join('')}</select></div></div></article>`
+  const stage=S.status[j.id];
+  const applyControl=stage?`<span class="tag ok" title="在「我的投递」里调整阶段">✓ ${esc(stage)}</span>`:`<button class="btn primary" data-quick-apply="${esc(j.id)}">＋ 加入已投递</button>`;
+  return`<article class="card job"><div><div class="company">${esc(j.company||'待核公司')}</div><div class="jobtitle">${esc(j.title||'待核岗位')}</div><div class="meta"><span>📍 ${esc(j.city||'待核')}</span><span>🧭 ${esc(v.direction)}</span><span>🗓 ${esc(j.deadline||'待核')}</span><span>${esc(j.source||'来源待核')}</span></div><div class="decision-grid"><div class="decision-cell"><span>岗位方向</span><b>${esc(v.direction)}</b></div><div class="decision-cell fit"><span>候选人适配</span><b>${fit}</b></div><div class="decision-cell priority"><span>投递优先分</span><b>${esc(v.priorityScore)}</b></div></div><div class="decision-why"><strong>推荐判断</strong><span>${esc(reason)}</span></div><div class="tags">${salary?`<span class="tag ok" title="薪资来源：${esc(comp.sourceLabel||'岗位来源')}；可信度：${esc(confidenceLabel(comp))}">💰 ${esc(salary)}</span><span class="tag ${comp.confidence==='high'?'ok':'warn'}">${comp.confidence==='high'?'薪资·高可信':'薪资·待官网复核'}</span>`:''}<span class="tag ${j.sourceType==='official'?'ok':'warn'}" data-secondary="1">${j.sourceType==='official'?'官方来源':'二手来源 · 投递前回官网'}</span><span data-secondary="1">${qualityTag(v.dataQuality)}</span>${risk?`<span class="tag warn" data-risk="1">风险 -${risk}</span>`:''}${highRisk?`<span class="tag warn" data-risk="1">历史风险 A/B·${highRisk}</span>`:''}${internRisk?`<span class="tag" data-risk="1">实习留用线索 ${internRisk}</span>`:''}</div></div><div class="match"><div><div class="level"><span class="pill ${levelClass(v.level)}">${esc(recLabel(v.level))}</span></div></div><div class="actions">${j.sourceUrl?`<a class="btn ${j.sourceType==='official'?'primary':'soft'}" target="_blank" rel="noopener" href="${esc(j.sourceUrl)}">${j.sourceType==='official'?'立即投递':'查看来源'}</a>`:''}<button class="btn" data-detail="${esc(j.id)}">评价详情</button>${applyControl}</div></div></article>`
 }
 
 function quickFilters(){
@@ -106,11 +108,27 @@ function jobsPage(){
 function dataNotes(){return`<div class="card help"><h3>评价说明 · V1.2</h3><ul><li><b>AI_Job</b> 只负责发现、抓取、去重、来源核验与JD结构化；最终等级由本看板规则生成。</li><li><b>Eligibility Gate</b>：仅硕士/研究生、博士学历岗位，以及其他本科不满足的硬门槛岗位，直接从主看板排除；本科及以上、本科/硕士均可岗位保留。</li><li><b>Candidate Fit</b> = 职责30 + 专业语言20 + 真实经历25 + 职业方向15 + 可补足能力10。</li><li><b>Data Quality</b> 单独0–10，不进入适配分；INVALID岗位只进入数据修复队列。</li><li><b>风险</b> 单独扣分：长期驻外-15、高频出差-8、强销售KPI-10、高压-5等。</li><li>二手来源不降低候选人适配度，只降低信息可信度；投递前必须回企业官网核验。</li><li><b>V1.2 推荐层</b>：适配等级与最终推荐等级分离；卡片等级表示"最终推荐"。最终推荐按风险后的优先分调整，PARTIAL 岗位推荐上限为 B，明确海外工作地点按长期海外风险 -15 处理；服务海外市场但工作地点在国内不会触发该项。</li><li><b>V1.3 情报层</b>：岗位层展示月薪/年薪、来源与可信度；公司风险按 A 一手材料、B 高可信媒体、C 社区线索、D 未核实传闻分级。CampusShame、牛客、脉脉等社区内容默认只作核验线索，不参与 S/A/B，也不把匿名单帖当事实。</li></ul></div>`}
 
 function syncPanel(){return`<div class="card offer" style="padding:16px;margin-bottom:14px"><div class="ruleline" style="margin:0"><div><b style="font-size:13px;color:#344054">云同步</b><div class="muted" style="font-size:12px;margin-top:2px">${syncStatusText()}</div></div><div class="actions"><input id="sync-secret" type="password" placeholder="同步密码（在 Vercel 项目里设置）" value="${S.sync.secret?esc(S.sync.secret):''}" style="border:1px solid var(--line-strong);border-radius:9px;padding:8px 10px;min-width:200px"><button class="btn" id="sync-save">${S.sync.secret?'更新密码':'启用同步'}</button>${S.sync.secret?'<button class="btn" id="sync-now">立即同步</button>':''}</div></div></div>`}
-function pipelinePage(){const all=evaluated(),selected=all.filter(j=>S.status[j.id]);return`<section class="hero"><div><h1>我的投递</h1><div class="subtitle">投递记录保存在当前浏览器；启用云同步后可在多台设备间同步。</div></div></section>${syncPanel()}<div class="toolbar"><div class="actions"><button class="btn" id="export-json">导出 JSON</button><button class="btn" id="export-csv">导出 CSV</button><button class="btn" id="import-json">导入 JSON</button><input id="import-file" type="file" accept="application/json" class="hidden"></div><span class="muted">当前记录 ${selected.length} 个岗位</span></div><div class="pipeline">${STAGES.map(stage=>{const arr=selected.filter(j=>S.status[j.id]===stage);return`<div class="lane"><h3>${stage} · ${arr.length}</h3>${arr.map(j=>`<div class="mini" data-detail="${esc(j.id)}"><b>${esc(j.title)}</b><small>${esc(j.company)} · ${esc(j._evaluation.level)}</small></div>`).join('')||'<span class="muted">暂无</span>'}</div>`}).join('')}</div>${dataNotes()}`}
+function pipelinePage(){const all=evaluated(),selected=all.filter(j=>S.status[j.id]);return`<section class="hero"><div><h1>我的投递</h1><div class="subtitle">在这里维护每个岗位的投递阶段；启用云同步后可在多台设备间同步。</div></div></section>${syncPanel()}<div class="toolbar"><div class="actions"><button class="btn" id="export-json">导出 JSON</button><button class="btn" id="export-csv">导出 CSV</button><button class="btn" id="import-json">导入 JSON</button><input id="import-file" type="file" accept="application/json" class="hidden"></div><span class="muted">当前记录 ${selected.length} 个岗位</span></div><div class="pipeline">${STAGES.map(stage=>{const arr=selected.filter(j=>S.status[j.id]===stage);return`<div class="lane"><h3>${stage} · ${arr.length}</h3>${arr.map(j=>`<div class="mini"><b data-detail="${esc(j.id)}" style="cursor:pointer">${esc(j.title)}</b><small>${esc(j.company)} · ${esc(j._evaluation.level)}</small><select class="status" data-status="${esc(j.id)}"><option value="">移出跟踪</option>${STAGES.map(x=>`<option ${S.status[j.id]===x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('')||'<span class="muted">暂无</span>'}</div>`}).join('')}</div>${dataNotes()}`}
 function bars(rows,max){const m=max||Math.max(1,...rows.map(x=>x[1]));return rows.map(([n,v])=>`<div class="bar"><span>${esc(n)}</span><div class="barbg"><div class="barfill" style="width:${Math.min(100,v/m*100)}%"></div></div><b>${v}</b></div>`).join('')}
-function statsPage(){const all=evaluated(),normal=normalJobs();const byDir=Object.entries(normal.reduce((m,j)=>(m[j._evaluation.direction]=(m[j._evaluation.direction]||0)+1,m),{})).sort((a,b)=>b[1]-a[1]).slice(0,8),byCity=Object.entries(normal.reduce((m,j)=>(m[j.city]=(m[j.city]||0)+1,m),{})).sort((a,b)=>b[1]-a[1]).slice(0,8);return`<section class="hero"><div><h1>统计分析</h1><div class="subtitle">把候选人适配、数据质量和来源可信度分开看。</div></div>${updateBox()}</section><div class="charts"><div class="card chart"><h3>推荐等级</h3>${bars(['S++','S','A','B','C','D'].map(x=>[x,normal.filter(j=>j._evaluation.level===x).length]))}</div><div class="card chart"><h3>数据质量</h3>${bars(['VALID','PARTIAL'].map(x=>[x,normal.filter(j=>j._evaluation.dataQuality.status===x).length]))}</div><div class="card chart"><h3>方向分布</h3>${bars(byDir)}</div><div class="card chart"><h3>来源</h3>${bars([['官方',normal.filter(j=>j.sourceType==='official').length],['二手',normal.filter(j=>j.sourceType!=='official').length]])}</div></div>${dataNotes()}`}
-function offerScore(o){return Math.round((Number(o.fit||0)*.3+Number(o.growth||0)*.25+Number(o.pay||0)*.2+Number(o.city||0)*.15+Number(o.pace||0)*.1)*10)/10}
-function offersPage(){return`<section class="hero"><div><h1>Offer 对比</h1><div class="subtitle">匹配30% · 成长25% · 薪酬20% · 城市15% · 工作节奏10%</div></div></section><div class="offers"><form id="offer-form" class="card offer"><div class="grid"><input class="wide" name="company" required placeholder="公司"><input class="wide" name="title" required placeholder="岗位"><input name="location" placeholder="城市"><input name="salary" placeholder="薪资/总包"><div><label>岗位匹配 1–10</label><input name="fit" type="number" min="1" max="10" value="7"></div><div><label>成长空间 1–10</label><input name="growth" type="number" min="1" max="10" value="7"></div><div><label>薪酬福利 1–10</label><input name="pay" type="number" min="1" max="10" value="7"></div><div><label>城市偏好 1–10</label><input name="city" type="number" min="1" max="10" value="7"></div><div><label>工作节奏 1–10</label><input name="pace" type="number" min="1" max="10" value="7"></div><textarea class="wide" name="note" placeholder="备注"></textarea><button class="btn primary wide">加入对比</button></div></form><div class="card offer table"><table><thead><tr><th>公司 / 岗位</th><th>城市</th><th>薪资</th><th>综合</th><th>备注</th><th></th></tr></thead><tbody>${S.offers.length?[...S.offers].sort((a,b)=>offerScore(b)-offerScore(a)).map(o=>`<tr><td><b>${esc(o.company)}</b><br>${esc(o.title)}</td><td>${esc(o.location||'-')}</td><td>${esc(o.salary||'-')}</td><td><b>${offerScore(o)}</b></td><td>${esc(o.note||'-')}</td><td><button class="btn danger" data-delete-offer="${o.id}">删除</button></td></tr>`).join(''):'<tr><td colspan="6" class="muted">暂无 Offer 对比记录</td></tr>'}</tbody></table></div></div>`}
+function statsPage(){
+  const tracked=evaluated().filter(j=>S.status[j.id]);
+  if(!tracked.length) return`<section class="hero"><div><h1>统计分析</h1><div class="subtitle">统计的是「我的投递」里跟踪的岗位，目前还没有记录。</div></div></section><div class="card empty">先在机会看板里给岗位点"加入已投递"，这里会显示投递阶段、推荐等级、方向和来源的统计。</div>`;
+  const byDir=Object.entries(tracked.reduce((m,j)=>(m[j._evaluation.direction]=(m[j._evaluation.direction]||0)+1,m),{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  return`<section class="hero"><div><h1>统计分析</h1><div class="subtitle">针对「我的投递」里跟踪的 ${tracked.length} 个岗位统计。</div></div></section><div class="charts"><div class="card chart"><h3>投递阶段</h3>${bars(STAGES.map(s=>[s,tracked.filter(j=>S.status[j.id]===s).length]))}</div><div class="card chart"><h3>推荐等级</h3>${bars(['S++','S','A','B','C','D'].map(x=>[x,tracked.filter(j=>j._evaluation.level===x).length]))}</div><div class="card chart"><h3>方向分布</h3>${bars(byDir)}</div><div class="card chart"><h3>来源</h3>${bars([['官方',tracked.filter(j=>j.sourceType==='official').length],['二手',tracked.filter(j=>j.sourceType!=='official').length]])}</div></div>${dataNotes()}`}
+function offerFit(v){return Math.round(v.fit.score/10*10)/10}
+function offerScore(fit10,s){return Math.round((fit10*.3+Number(s.growth||0)*.25+Number(s.pay||0)*.2+Number(s.city||0)*.15+Number(s.pace||0)*.1)*10)/10}
+function offerRow(j){
+  const v=j._evaluation,fit10=offerFit(v),s=S.offerScores[j.id]||{growth:7,pay:7,city:7,pace:7,note:''};
+  const salary=salaryText(j)||j.salary||'-';
+  const num=(field)=>`<input type="number" min="1" max="10" value="${esc(s[field])}" data-offer="${esc(j.id)}" data-field="${field}" style="width:52px">`;
+  return`<tr><td><b>${esc(j.company)}</b><br>${esc(j.title)}</td><td>${esc(j.city||'-')}</td><td>${esc(salary)}</td><td>${fit10}</td><td>${num('growth')}</td><td>${num('pay')}</td><td>${num('city')}</td><td>${num('pace')}</td><td><b>${offerScore(fit10,s)}</b></td><td><input value="${esc(s.note)}" data-offer="${esc(j.id)}" data-field="note" placeholder="备注" style="width:120px"></td></tr>`
+}
+function offersPage(){
+  const offerJobs=evaluated().filter(j=>S.status[j.id]==='Offer');
+  if(!offerJobs.length) return`<section class="hero"><div><h1>Offer 对比</h1><div class="subtitle">在「我的投递」里把岗位状态改成 Offer 后，会自动出现在这里对比。</div></div></section><div class="card empty">暂无处于 Offer 阶段的岗位。</div>`;
+  const sorted=[...offerJobs].sort((a,b)=>{const sa=S.offerScores[a.id]||{growth:7,pay:7,city:7,pace:7},sb=S.offerScores[b.id]||{growth:7,pay:7,city:7,pace:7};return offerScore(offerFit(b._evaluation),sb)-offerScore(offerFit(a._evaluation),sa)});
+  return`<section class="hero"><div><h1>Offer 对比</h1><div class="subtitle">候选人适配 30%（自动取自岗位评价）· 成长 25% · 薪酬 20% · 城市 15% · 工作节奏 10%（后四项自己按 1–10 打分）</div></div></section><div class="card offer table"><table><thead><tr><th>公司 / 岗位</th><th>城市</th><th>薪资</th><th>适配</th><th>成长</th><th>薪酬</th><th>城市偏好</th><th>节奏</th><th>综合</th><th>备注</th></tr></thead><tbody>${sorted.map(offerRow).join('')}</tbody></table></div>`
+}
 
 // ---- modal (now includes salary + company risk sections inline) ----
 function detailBox(label,value){return`<div class="detailbox"><b>${esc(label)}</b><span class="muted">${esc(value||'未披露')}</span></div>`}
@@ -155,10 +173,10 @@ async function pullRemote(){
   try{
     const remote=await syncFetch('GET');
     if((remote.updatedAt||0)>S.updatedAt){
-      S.status=remote.status||{};S.offers=remote.offers||[];S.updatedAt=remote.updatedAt||Date.now();
-      localStorage.setItem(STORAGE,JSON.stringify({status:S.status,offers:S.offers,updatedAt:S.updatedAt}));
+      S.status=remote.status||{};S.offerScores=remote.offerScores||{};S.updatedAt=remote.updatedAt||Date.now();
+      localStorage.setItem(STORAGE,JSON.stringify({status:S.status,offerScores:S.offerScores,updatedAt:S.updatedAt}));
     }else if(S.updatedAt>(remote.updatedAt||0)){
-      await syncFetch('POST',{status:S.status,offers:S.offers,updatedAt:S.updatedAt});
+      await syncFetch('POST',{status:S.status,offerScores:S.offerScores,updatedAt:S.updatedAt});
     }
     S.sync.state='synced';S.sync.lastSyncedAt=Date.now();
   }catch(err){console.warn('[sync pull]',err);S.sync.state='offline'}
@@ -168,7 +186,7 @@ async function pushRemote(){
   if(!S.sync.secret) return;
   S.sync.state='syncing';
   try{
-    await syncFetch('POST',{status:S.status,offers:S.offers,updatedAt:S.updatedAt});
+    await syncFetch('POST',{status:S.status,offerScores:S.offerScores,updatedAt:S.updatedAt});
     S.sync.state='synced';S.sync.lastSyncedAt=Date.now();
   }catch(err){console.warn('[sync push]',err);S.sync.state='offline'}
   if(S.tab==='pipeline') render();
@@ -191,20 +209,20 @@ app.addEventListener('click',ev=>{
   if(ev.target.id==='more'){S.limit+=40;render();return}
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
-  if(ev.target.id==='export-json'){download('campus-job-board-applications.json',JSON.stringify({status:S.status,offers:S.offers,exportedAt:new Date().toISOString()},null,2));return}
+  const quickApply=ev.target.closest('[data-quick-apply]')?.dataset.quickApply;if(quickApply){S.status[quickApply]='已投递';save();render();return}
+  if(ev.target.id==='export-json'){download('campus-job-board-applications.json',JSON.stringify({status:S.status,offerScores:S.offerScores,exportedAt:new Date().toISOString()},null,2));return}
   if(ev.target.id==='export-csv'){const rows=[['岗位ID','公司','岗位','状态','等级','适配度','优先分','信息质量'],...evaluated().filter(j=>S.status[j.id]).map(j=>[j.id,j.company,j.title,S.status[j.id],j._evaluation.level,j._evaluation.fit.score,j._evaluation.priorityScore,j._evaluation.dataQuality.status])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');download('campus-job-board-applications.csv',csv,'text/csv;charset=utf-8');return}
   if(ev.target.id==='import-json'){document.getElementById('import-file')?.click();return}
-  const del=ev.target.closest('[data-delete-offer]')?.dataset.deleteOffer;if(del){S.offers=S.offers.filter(o=>o.id!==del);save();render()}
   if(ev.target.id==='sync-save'){const v=(document.getElementById('sync-secret')?.value||'').trim();S.sync.secret=v;if(v)localStorage.setItem(SYNC_SECRET_KEY,v);else localStorage.removeItem(SYNC_SECRET_KEY);if(v)pullRemote();else render();return}
   if(ev.target.id==='sync-now'){pullRemote();return}
 });
 app.addEventListener('input',ev=>{if(ev.target.id==='q'){S.filter.q=ev.target.value;const pos=ev.target.selectionStart;render();const q=document.getElementById('q');q?.focus();q?.setSelectionRange(pos,pos)}});
 app.addEventListener('change',ev=>{
   if(['level','direction','city','source','quality'].includes(ev.target.id)){S.filter[ev.target.id]=ev.target.value;render();return}
+  const offerId=ev.target.dataset.offer,field=ev.target.dataset.field;
+  if(offerId&&field){S.offerScores[offerId]=S.offerScores[offerId]||{growth:7,pay:7,city:7,pace:7,note:''};S.offerScores[offerId][field]=field==='note'?ev.target.value:Number(ev.target.value);save();render();return}
   const id=ev.target.dataset.status;if(id!==undefined){if(ev.target.value)S.status[id]=ev.target.value;else delete S.status[id];save();render();return}
-  if(ev.target.id==='import-file'&&ev.target.files?.[0]){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);S.status=data.status||{};S.offers=data.offers||[];save();render()}catch{alert('JSON 文件格式不正确')}};reader.readAsText(ev.target.files[0])}
+  if(ev.target.id==='import-file'&&ev.target.files?.[0]){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);S.status=data.status||{};S.offerScores=data.offerScores||{};save();render()}catch{alert('JSON 文件格式不正确')}};reader.readAsText(ev.target.files[0])}
 });
-app.addEventListener('submit',ev=>{if(ev.target.id!=='offer-form')return;ev.preventDefault();const data=Object.fromEntries(new FormData(ev.target).entries());S.offers.push({id:'offer-'+Date.now(),...data});save();render()});
-
 render();load();
 })();

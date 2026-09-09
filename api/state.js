@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const result = await kv(`/get/${KEY}`);
       const value = result?.result ? JSON.parse(result.result) : null;
-      res.status(200).json(value || { status: {}, offers: [], updatedAt: 0 });
+      res.status(200).json(value || { status: {}, offerScores: {}, updatedAt: 0 });
       return;
     }
 
@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
       const data = JSON.parse(body || '{}');
       const payload = {
         status: data.status || {},
-        offers: Array.isArray(data.offers) ? data.offers : [],
+        offerScores: data.offerScores || {},
         updatedAt: Number(data.updatedAt) || Date.now(),
       };
       await kv(`/set/${KEY}`, {
