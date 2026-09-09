@@ -9,6 +9,7 @@ on:
       - 'scoring-v1.1.js'
       - 'scoring-v1.1-language-patch.js'
       - 'scoring-v1.1.test.js'
+      - 'calibrate-v1.1.js'
       - '.github/workflows/board-check.yml'
   workflow_dispatch:
 
@@ -16,7 +17,13 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout board
+        uses: actions/checkout@v4
+      - name: Checkout live job source
+        uses: actions/checkout@v4
+        with:
+          repository: lizhenhai2024-alt/AI_Job
+          path: AI_Job
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -26,8 +33,12 @@ jobs:
         run: node --check scoring-v1.1-language-patch.js
       - name: Check app syntax
         run: node --check app-v1.1.js
+      - name: Check calibration syntax
+        run: node --check calibrate-v1.1.js
       - name: Run scoring boundary tests
         run: node scoring-v1.1.test.js
+      - name: Calibrate against current live job pool
+        run: node calibrate-v1.1.js AI_Job/src/data/live-jobs.js
       - name: Verify index wiring
         run: |
           grep -q 'scoring-v1.1.js' index.html
