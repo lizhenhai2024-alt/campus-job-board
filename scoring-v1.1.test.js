@@ -17,14 +17,28 @@ function job(overrides={}){
 const now = new Date('2026-09-10T00:00:00+08:00');
 
 assert.equal(S.gate(job({description:'面向2027届应届硕士毕业生，不限专业，负责项目管理。'}),now).passed,false,'仅硕士岗位应Gate Fail');
+assert.equal(S.gate(job({description:'研究生及以上学历，负责项目管理。'}),now).passed,false,'研究生及以上岗位应Gate Fail');
+assert.equal(S.gate(job({description:'博士及以上学历，负责研发项目管理。'}),now).passed,false,'博士及以上岗位应Gate Fail');
+assert.equal(S.gate(job({title:'27届科技项目管理工程师（博士）',description:'2027届校园招聘，项目管理方向。'}),now).passed,false,'标题明确博士时应Gate Fail');
+assert.equal(S.gate(job({title:'海外运营（硕士）',description:'2027届校招。'}),now).passed,false,'标题明确硕士时应Gate Fail');
+assert.equal(S.gate(job({description:'本科及以上学历，硕士优先，负责国际业务。'}),now).passed,true,'本科明确可投且硕士优先时不应排除');
+assert.equal(S.gate(job({description:'本科、硕士、博士均可申请，负责国际业务。'}),now).passed,true,'本科明确可投时不应因硕博字样排除');
+
 assert.equal(S.gate(job({title:'2026校招-业务运营管培生',graduationYear:'2027'}),now).passed,false,'标题明确2026校招时不能被2027字段放行');
 assert.equal(S.gate(job({title:'2026届品牌运营',graduationYear:'2027'}),now).passed,false,'标题明确2026届时不能进入2027主榜');
 assert.equal(S.gate(job({title:'2027届海外运营',graduationYear:'2027'}),now).passed,true,'2027标题应正常通过届别检查');
+
 assert.equal(S.gate(job({description:'本科及以上，要求日语N1，可作为工作语言。'}),now).passed,false,'必须日语应Gate Fail');
 assert.equal(S.gate(job({description:'本科及以上，英语可作为工作语言，会日语优先。'}),now).passed,true,'日语优先不应Gate Fail');
 assert.equal(S.gate(job({description:'本科及以上，英语或日语其中一种可作为工作语言。'}),now).passed,true,'英语或日语任选应通过');
 assert.equal(S.gate(job({description:'要求日语N1；Excel熟练者优先。'}),now).passed,false,'其他条件出现优先时仍应识别必须日语');
 assert.equal(S.gate(job({description:'英语及小语种相关专业优先，本科及以上。'}),now).passed,true,'小语种专业优先不能误判为必须小语种');
+assert.equal(S.gate(job({title:'GTM Product Manager (Swedish) - Sweden',description:'本科及以上，负责当地GTM。'}),now).passed,false,'标题限定Swedish应Gate Fail');
+
+assert.equal(S.direction(job({title:'人力资源管培生',roleFamily:['项目管理'],description:'负责HR项目推进。'})),'HR·HRBP','标题明确HR时必须优先于正文项目词');
+assert.equal(S.direction(job({title:'产品经理管培生',roleFamily:['项目管理'],description:'负责产品规划和跨部门项目推进。'})),'产品·业务运营','产品经理不应归入PMO');
+assert.equal(S.direction(job({title:'物流商务管培生',roleFamily:['其他'],description:'负责物流商务协同。'})),'国际物流·供应链管培','物流商务应归供应链物流');
+assert.equal(S.direction(job({title:'国际业务法务BP',roleFamily:['国际业务'],description:'负责国际业务法务支持。'})),'其他','法务等专业职能不能因国际业务字样进入海外业务类');
 
 const overseas=S.evaluate(job({description:'负责海外业务和市场研究，需要长期驻外。'}),now);
 assert.equal(overseas.gate.passed,true,'长期驻外不应硬Gate');
