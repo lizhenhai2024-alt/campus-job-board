@@ -58,11 +58,17 @@
     }
     return null;
   }
-  function advancedDegreeRequired(t){
+  function bachelorExplicitlyAllowed(text){
+    return /本科及以上|本科以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士|本科\/硕士\/博士|本科、硕士、博士|本科生、硕士生、博士生|本科生及以上/i.test(String(text||''));
+  }
+  function advancedDegreeRequired(t,title=''){
+    title=String(title||'');
+    if(/硕士|博士/.test(title) && !/本科/.test(title)) return true;
     for(const clause of clauses(t)){
-      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|硕士毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士学历|须为硕士|要求硕士)/i.test(clause);
-      const bachelorAllowed=/本科及以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士|本科以上|本科\/硕士\/博士|本科、硕士、博士/i.test(clause);
-      if(advanced&&!bachelorAllowed) return true;
+      if(bachelorExplicitlyAllowed(clause)) continue;
+      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|面向博士|硕士毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士学历|须为硕士|要求硕士|面向硕士)/i.test(clause);
+      const preferred=/(硕士优先|博士优先|研究生优先)/i.test(clause);
+      if(advanced&&!preferred) return true;
     }
     return false;
   }
@@ -88,7 +94,7 @@
       x!=='存在必须的技术能力门槛'
     );
     if(explicitNon2027Title(job.title)) reasons.push('岗位标题明确为非2027届');
-    if(advancedDegreeRequired(t)) reasons.push('学历要求高于本科，本科不满足');
+    if(advancedDegreeRequired(t,job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
     if(hardTechRequired(t)) reasons.push('存在必须的技术能力门槛');
     const titleLang=languageSpecificTitle(job.title);
     if(titleLang&&!alternativesSatisfied(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
@@ -119,6 +125,8 @@
   S.mandatorySmallLanguage=mandatorySmallLanguage;
   S.languageSpecificTitle=languageSpecificTitle;
   S.explicitNon2027Title=explicitNon2027Title;
+  S.bachelorExplicitlyAllowed=bachelorExplicitlyAllowed;
+  S.advancedDegreeRequired=advancedDegreeRequired;
   S.gate=gate;
   S.evaluate=evaluate;
 })(typeof globalThis!=='undefined'?globalThis:this);
