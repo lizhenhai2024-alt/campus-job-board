@@ -7,9 +7,10 @@ const { pathToFileURL } = require('node:url');
 require('./scoring-v1.1.js');
 require('./scoring-v1.1-language-patch.js');
 require('./scoring-v1.2-calibration-patch.js');
+require('./scoring-v1.3-quality-patch.js');
 
 const S = globalThis.CampusScoring;
-if (!S?.evaluate) throw new Error('CampusScoring V1.2 not loaded');
+if (!S?.evaluate) throw new Error('CampusScoring V1.3 not loaded');
 
 const LEVEL_RANK = { 'S++': 6, S: 5, A: 4, B: 3, C: 2, D: 1 };
 const PRIORITY = new Set(['S++', 'S', 'A', 'B']);
