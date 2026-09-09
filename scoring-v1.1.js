@@ -1,0 +1,311 @@
+(function(root){
+  'use strict';
+
+  const PROFILE = {
+    graduationYear: '2027',
+    degree: '本科',
+    major: '英语',
+    languages: ['英语'],
+    targetCities: ['深圳','广州','上海','武汉','长沙','北京','杭州','苏州'],
+    preferredDirections: ['GTM','PMO','项目管理','国际业务','海外业务','跨境电商','供应链','国际物流','品牌','内容运营','用户运营','商业分析','HRBP'],
+    experiences: {
+      astemo: ['项目进度','项目变更','变更审批','Gate评审','跨部门协同','项目节点','流程','职责梳理','项目管理','PMO'],
+      overseasRail: ['海外业务','英文资料','竞品分析','市场研究','业务布局','海外展会','客户信息','台账','国际业务','海外市场','GTM'],
+      bilingualMuseum: ['双语','中英文讲解','跨文化','客户沟通','受众沟通','英文表达'],
+      translation: ['翻译','本地化','术语','中英文稿件','质量控制','交付']
+    }
+  };
+
+  const DIRS = [
+    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销/i],
+    ['PMO·项目管理', /PMO|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
+    ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
+    ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
+    ['国际物流·供应链管培', /国际物流|物流运营|供应链|采购管理|供应链管培|物流管培/i],
+    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营/i],
+    ['经营·商业分析', /经营分析|商业分析|战略运营|业务运营|经营管理|策略分析/i],
+    ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培/i],
+    ['其他', /.*/i]
+  ];
+
+  const CITY_SCORE = {深圳:10,广州:9,上海:9,武汉:8,长沙:8,北京:7,杭州:7,苏州:7};
+  const TECH_TITLE = /研发工程师|算法工程师|软件工程师|硬件工程师|机械工程师|电气工程师|结构工程师|测试工程师|实施工程师|开发工程师/i;
+  const LOW_VALUE = /纯翻译|翻译专员|行政|文员|跟单|客服专员|销售代表|渠道销售|区域销售|纯销售/i;
+  const INTERNATIONAL = /英语|英文|English|CET|海外|国际|全球|跨境|出海|GTM|跨文化|海外客户|国际客户/i;
+  const MARKET_BUSINESS = /市场营销|国际商务|工商管理|广告|新闻传播|传播学|国际贸易|经济|金融|商业分析|供应链|物流管理|文科|社科/i;
+  const STEM = /理工科|计算机|软件|电子|电气|机械|自动化|材料|数学|统计|数据科学|工业工程|物流工程/i;
+
+  function uniq(arr){ return [...new Set((arr||[]).filter(Boolean).map(String))]; }
+  function arr(v){ return Array.isArray(v) ? v : v ? [v] : []; }
+  function evidence(job){
+    const f=job.candidateFit||{};
+    return uniq([
+      ...arr(f.major&&f.major.evidence),
+      ...arr(f.eligibilityEvidence),
+      ...arr(f.responsibility&&f.responsibility.business),
+      ...arr(f.responsibility&&f.responsibility.technical)
+    ]);
+  }
+  function sourceText(job){
+    return [
+      job.title, job.description, job.city, job.company,
+      ...arr(job.roleFamily), ...arr(job.skills), ...arr(job.languages),
+      ...arr(job.experienceKeywords), ...arr(job.preferenceTags), ...arr(job.riskTags),
+      ...evidence(job)
+    ].filter(Boolean).join(' ');
+  }
+
+  function direction(job){
+    const t=[job.title, ...arr(job.roleFamily), job.description].filter(Boolean).join(' ');
+    for(const [name, rx] of DIRS){ if(rx.test(t)) return name; }
+    return '其他';
+  }
+
+  function isExpired(deadline, now=new Date()){
+    if(!deadline) return false;
+    const d=new Date(String(deadline).slice(0,10)+'T23:59:59+08:00');
+    return !Number.isNaN(d.getTime()) && d < now;
+  }
+
+  function directJobUrl(url=''){
+    return /detail|jobAdId|jobId|position|campus\/job|jobs\/|recruit/i.test(String(url));
+  }
+
+  function dataQuality(job){
+    const ev=evidence(job), f=job.candidateFit||{}, desc=String(job.description||'');
+    let score=0;
+    const reasons=[];
+    if(job.sourceType==='official'){ score+=3; reasons.push('官方招聘来源 +3'); }
+    else if(job.sourceUrl){ score+=1; reasons.push('有可追溯来源 +1'); }
+    if(job.sourceUrl){ score+=directJobUrl(job.sourceUrl)?2:1; reasons.push(directJobUrl(job.sourceUrl)?'可直达具体岗位 +2':'有来源链接 +1'); }
+    if(arr(f.major&&f.major.evidence).length || arr(f.eligibilityEvidence).length){ score+=2; reasons.push('有专业/资格原文证据 +2'); }
+    if(desc.length>=100 || arr(f.responsibility&&f.responsibility.business).length || arr(f.responsibility&&f.responsibility.technical).length){ score+=1; reasons.push('有职责信息 +1'); }
+    if(job.deadline){ score+=1; reasons.push('有截止日期 +1'); }
+    if(desc.length>=180 || ev.length>=3){ score+=1; reasons.push('JD信息较完整 +1'); }
+    score=Math.min(10,score);
+
+    let status=score>=7?'VALID':score>=4?'PARTIAL':'INVALID';
+    const title=String(job.title||'');
+    const obviousAggregate=/多个岗位|岗位合集|职位合集|岗位集合|职位集合|多岗位|招聘岗位如下/i.test(title+' '+desc);
+    const genericSecondary=job.sourceType!=='official' && /^自动发现的/.test(desc) && !arr(f.major&&f.major.evidence).length && !arr(f.responsibility&&f.responsibility.business).length;
+    if(!job.company || !job.title || !job.sourceUrl || obviousAggregate || genericSecondary) status='INVALID';
+    return {score,status,reasons};
+  }
+
+  function alternativeLanguageSatisfied(t){
+    const englishAlternative=/(英语|英文|English).{0,12}(或|\/|、|任选|任一|其中一种|至少一种).{0,12}(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean)/i.test(t)
+      || /(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean).{0,12}(或|\/|、|任选|任一|其中一种|至少一种).{0,12}(英语|英文|English)/i.test(t);
+    return englishAlternative;
+  }
+
+  function mandatorySmallLanguage(t){
+    if(alternativeLanguageSatisfied(t)) return null;
+    if(/(日语|日文|Japanese).{0,12}(N1|N2|工作语言|熟练|精通|必须|要求)|(必须|要求).{0,10}(日语|日文|Japanese)/i.test(t) && !/(优先|加分|更佳|preferred|plus)/i.test(t)) return '日语';
+    if(/(西班牙语|西语|Spanish).{0,12}(工作语言|熟练|精通|必须|要求)|(必须|要求).{0,10}(西班牙语|西语|Spanish)/i.test(t) && !/(优先|加分|更佳|preferred|plus)/i.test(t)) return '西班牙语';
+    if(/(德语|German).{0,12}(工作语言|熟练|精通|必须|要求)|(必须|要求).{0,10}(德语|German)/i.test(t) && !/(优先|加分|更佳|preferred|plus)/i.test(t)) return '德语';
+    if(/(法语|French).{0,12}(工作语言|熟练|精通|必须|要求)|(必须|要求).{0,10}(法语|French)/i.test(t) && !/(优先|加分|更佳|preferred|plus)/i.test(t)) return '法语';
+    if(/(韩语|Korean).{0,12}(TOPIK|工作语言|熟练|精通|必须|要求)|(必须|要求).{0,10}(韩语|Korean)/i.test(t) && !/(优先|加分|更佳|preferred|plus)/i.test(t)) return '韩语';
+    return null;
+  }
+
+  function gate(job, now=new Date()){
+    const t=sourceText(job), reasons=[];
+    const year=String(job.graduationYear||'');
+    if(year && !year.includes(PROFILE.graduationYear)) reasons.push('非2027届');
+    if(isExpired(job.deadline,now)) reasons.push('岗位已截止');
+    if(/实习|intern(ship)?/i.test(String(job.title||''))) reasons.push('实习岗位，不属于当前正式校招主池');
+
+    const onlyMaster=/(面向|仅限|要求|须为).{0,20}(2027届)?应届?硕士毕业生|仅限硕士|硕士及以上|研究生及以上|硕士学历/i.test(t)
+      && !/本科及以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士/i.test(t);
+    if(onlyMaster) reasons.push('学历要求为硕士/研究生，本科不满足');
+
+    const stemMandatory=/(必须|仅限|要求).{0,15}(理工科|计算机|软件|电子|电气|机械|自动化|工程技术)|(理工科|计算机|工程技术).{0,12}(必须|仅限)/i.test(t);
+    if(stemMandatory) reasons.push('专业硬门槛为理工/技术类');
+
+    const hardTech=/(必须|熟练掌握|要求掌握|须具备).{0,12}(SQL|Python|Java|C\+\+|编程|数据库)/i.test(t)
+      && !/(优先|加分|了解|熟悉者优先)/i.test(t);
+    if(hardTech) reasons.push('存在必须的技术能力门槛');
+
+    const lang=mandatorySmallLanguage(t);
+    if(lang) reasons.push(`必须${lang}，当前英语画像不满足`);
+    if(TECH_TITLE.test(String(job.title||''))) reasons.push('无关技术工程/实施岗位');
+    return {passed:reasons.length===0,reasons};
+  }
+
+  function responsibilityScore(job, dir){
+    const t=sourceText(job), title=String(job.title||'');
+    let base={
+      'GTM·市场策略':29,
+      'PMO·项目管理':28,
+      '跨境电商运营':27,
+      '外贸·海外业务':27,
+      '国际物流·供应链管培':24,
+      '品牌·内容·用户运营':23,
+      '经营·商业分析':22,
+      'HR·HRBP':19,
+      '其他':14
+    }[dir]||14;
+    if(/项目推进|项目协调|Gate|变更|跨部门/.test(t) && dir==='PMO·项目管理') base=Math.min(30,base+2);
+    if(/海外市场|市场策略|产品上市|go[- ]?to[- ]?market|竞品|市场洞察/i.test(t) && dir==='GTM·市场策略') base=Math.min(30,base+1);
+    if(/销售跟单|订单跟进|客服|电话销售|纯销售|销售指标|陌拜/.test(t)) base=Math.min(base,12);
+    if(LOW_VALUE.test(title)) base=Math.min(base,10);
+    if(TECH_TITLE.test(title)) base=Math.min(base,5);
+    return Math.max(0,Math.min(30,base));
+  }
+
+  function majorLanguageScore(job){
+    const t=sourceText(job), ev=evidence(job).join(' ');
+    let score=12;
+    if(/专业不限|不限专业/.test(t)) score=19;
+    else if(/英语专业|外语类|外国语言文学|语言类|翻译类/.test(t)) score=20;
+    else if(MARKET_BUSINESS.test(ev||t)) score=16;
+    if(STEM.test(ev) && !MARKET_BUSINESS.test(ev)) score=8;
+    if(/理工.*优先|技术背景优先|计算机.*优先/.test(t)) score=Math.min(score,10);
+    if(INTERNATIONAL.test(t)) score=Math.min(20,score+2);
+    if(/英语.*工作语言|英文.*工作语言|英文沟通|英语沟通|海外客户|国际客户/.test(t)) score=Math.min(20,score+1);
+    if(/小语种.*优先|日语.*优先|西语.*优先|德语.*优先|法语.*优先|韩语.*优先/.test(t)) score=Math.max(8,score-1);
+    return Math.max(0,Math.min(20,score));
+  }
+
+  function countHits(t, words){ return words.filter(w=>t.includes(w)).length; }
+  function experienceScore(job, dir){
+    const t=sourceText(job);
+    const ast=countHits(t,PROFILE.experiences.astemo);
+    const rail=countHits(t,PROFILE.experiences.overseasRail);
+    const museum=countHits(t,PROFILE.experiences.bilingualMuseum);
+    const trans=countHits(t,PROFILE.experiences.translation);
+    let score=8, direct=[];
+
+    if(dir==='PMO·项目管理'){
+      score=12+Math.min(11,ast*2)+Math.min(2,rail);
+      if(ast>=3) direct.push('安斯泰莫：项目变更/Gate/跨部门协同直接对应');
+    } else if(dir==='GTM·市场策略' || dir==='外贸·海外业务'){
+      score=11+Math.min(11,rail*2)+Math.min(2,museum)+Math.min(2,trans);
+      if(rail>=3) direct.push('中车海外事业部：竞品/海外市场/英文业务资料直接对应');
+    } else if(dir==='跨境电商运营'){
+      score=10+Math.min(8,rail*2)+Math.min(3,museum)+Math.min(3,trans);
+      if(rail>=2) direct.push('中车海外业务经历可迁移到跨境业务场景');
+    } else if(dir==='品牌·内容·用户运营'){
+      score=9+Math.min(6,rail)+Math.min(5,museum*2)+Math.min(5,trans*2);
+      if(museum>=2||trans>=2) direct.push('双语讲解/翻译经历支持英文内容与用户沟通');
+    } else if(dir==='国际物流·供应链管培'){
+      score=10+Math.min(5,ast)+Math.min(7,rail);
+      if(ast>=2||rail>=2) direct.push('项目协同与海外台账经历可迁移到供应链协同');
+    } else if(dir==='经营·商业分析'){
+      score=9+Math.min(6,rail)+Math.min(4,ast);
+      if(rail>=2) direct.push('竞品与业务布局研究可迁移到商业分析');
+    } else if(dir==='HR·HRBP'){
+      score=8+Math.min(4,ast)+Math.min(3,museum);
+    } else {
+      score=8+Math.min(5,ast+rail+museum+trans);
+    }
+    return {score:Math.max(0,Math.min(25,score)),direct,strongDirect:direct.length>0,signals:{astemo:ast,overseasRail:rail,bilingualMuseum:museum,translation:trans}};
+  }
+
+  function careerValueScore(job,dir){
+    let score={
+      'GTM·市场策略':15,
+      'PMO·项目管理':15,
+      '外贸·海外业务':14,
+      '跨境电商运营':14,
+      '国际物流·供应链管培':13,
+      '品牌·内容·用户运营':12,
+      '经营·商业分析':12,
+      'HR·HRBP':9,
+      '其他':6
+    }[dir]||6;
+    const t=sourceText(job);
+    if(LOW_VALUE.test(String(job.title||'')) || /纯销售|销售跟单|行政文员/.test(t)) score=Math.min(score,4);
+    return score;
+  }
+
+  function learnabilityScore(job){
+    const t=sourceText(job);
+    let score=7;
+    if(/管培|培养|轮岗|导师|培训体系/.test(t)) score=10;
+    if(/Excel|数据分析|市场分析/.test(t)) score=Math.max(score,8);
+    if(/SQL|Python|编程/.test(t) && /(优先|加分|了解|熟悉者优先)/.test(t)) score=Math.min(score,6);
+    if(/SQL|Python|编程/.test(t) && !/(优先|加分|了解|熟悉者优先)/.test(t)) score=Math.min(score,3);
+    return Math.max(0,Math.min(10,score));
+  }
+
+  function risk(job){
+    const t=sourceText(job), items=[];
+    let deduction=0;
+    function add(label,value){items.push({label,value});deduction+=value;}
+    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外/.test(t)) add('长期派驻/驻外',15);
+    if(/频繁出差|高频出差|大量出差|经常出差/.test(t)) add('高频出差',8);
+    if(/销售KPI|销售指标|业绩指标|销售业绩/.test(t)) add('强销售KPI',10);
+    if(/高压|高强度|节奏快|抗压能力强/.test(t)) add('高压/高强度',5);
+    if(/SQL|Python|编程/.test(t) && /(优先|加分|了解|熟悉者优先)/.test(t)) add('关键技能需补足',8);
+    const city=String(job.city||'');
+    if(city && city!=='全国' && !PROFILE.targetCities.some(c=>city.includes(c))) add('城市非目标城市',5);
+    return {deduction:Math.min(35,deduction),items};
+  }
+
+  function level(fit, parts, q, gateResult, exp){
+    if(!gateResult.passed) return '不符合硬条件';
+    if(q.status==='INVALID') return '数据待修复';
+    if(fit>=92 && q.score>=8 && parts.responsibility>=27 && parts.majorLanguage>=16 && parts.experience>=21 && exp.strongDirect) return 'S++';
+    if(fit>=85) return 'S';
+    if(fit>=75) return 'A';
+    if(fit>=65) return 'B';
+    if(fit>=50) return 'C';
+    return 'D';
+  }
+
+  function reasoning(job,dir,parts,exp,q,r,g){
+    const reasons={};
+    reasons.responsibility=`岗位归类为${dir}，职责适配 ${parts.responsibility}/30。`;
+    reasons.major=`英语专业/语言场景适配 ${parts.majorLanguage}/20；硬门槛由Gate独立处理。`;
+    reasons.experience=exp.direct.length?`${exp.direct.join('；')}，经历得分 ${parts.experience}/25。`:`未识别到强直接经历，仅按可迁移能力计分 ${parts.experience}/25。`;
+    reasons.career=`职业方向价值 ${parts.careerValue}/15；以GTM、PMO、国际业务、跨境/供应链为优先。`;
+    reasons.learnability=`可补足能力 ${parts.learnability}/10；非硬门槛技能缺口只降分，不替代Gate。`;
+    reasons.dataQuality=`信息可信度 ${q.score}/10（${q.status}）。`;
+    reasons.risk=r.items.length?r.items.map(x=>`${x.label} -${x.value}`).join('；'):'未识别明显偏好风险。';
+    reasons.gate=g.passed?'硬条件通过。':`硬条件不通过：${g.reasons.join('；')}`;
+    return reasons;
+  }
+
+  function evaluate(job,now=new Date()){
+    const dir=direction(job), q=dataQuality(job), g=gate(job,now);
+    const responsibility=responsibilityScore(job,dir);
+    const majorLanguage=majorLanguageScore(job);
+    const exp=experienceScore(job,dir);
+    const careerValue=careerValueScore(job,dir);
+    const learnability=learnabilityScore(job);
+    const parts={responsibility,majorLanguage,experience:exp.score,careerValue,learnability};
+    const fit=Math.max(0,Math.min(100,Object.values(parts).reduce((a,b)=>a+b,0)));
+    const r=risk(job);
+    const priority=Math.max(0,Math.min(100,fit-r.deduction));
+    const lvl=level(fit,parts,q,g,exp);
+    return {
+      direction:dir,
+      gate:g,
+      fit:{score:fit,parts},
+      dataQuality:q,
+      risk:r,
+      priorityScore:priority,
+      level:lvl,
+      experienceEvidence:exp,
+      reasoning:reasoning(job,dir,parts,exp,q,r,g)
+    };
+  }
+
+  const LEVEL_RANK={'S++':7,'S':6,'A':5,'B':4,'C':3,'D':2,'不符合硬条件':1,'数据待修复':0};
+  function compare(a,b){
+    const ea=a._evaluation||evaluate(a), eb=b._evaluation||evaluate(b);
+    if(ea.gate.passed!==eb.gate.passed) return eb.gate.passed-ea.gate.passed;
+    const qr={VALID:3,PARTIAL:2,INVALID:1};
+    if(qr[ea.dataQuality.status]!==qr[eb.dataQuality.status]) return qr[eb.dataQuality.status]-qr[ea.dataQuality.status];
+    if((LEVEL_RANK[ea.level]||0)!==(LEVEL_RANK[eb.level]||0)) return (LEVEL_RANK[eb.level]||0)-(LEVEL_RANK[ea.level]||0);
+    if(ea.priorityScore!==eb.priorityScore) return eb.priorityScore-ea.priorityScore;
+    if(ea.fit.score!==eb.fit.score) return eb.fit.score-ea.fit.score;
+    if((a.sourceType==='official')!==(b.sourceType==='official')) return b.sourceType==='official'?1:-1;
+    return String(b.publishedAt||'').localeCompare(String(a.publishedAt||''));
+  }
+
+  const api={PROFILE,evaluate,compare,direction,dataQuality,gate,mandatorySmallLanguage,alternativeLanguageSatisfied,isExpired};
+  root.CampusScoring=api;
+  if(typeof module!=='undefined'&&module.exports) module.exports=api;
+})(typeof globalThis!=='undefined'?globalThis:this);
