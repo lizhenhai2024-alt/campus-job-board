@@ -1,0 +1,31 @@
+name: Check campus job board
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app-v1.1.js'
+      - 'scoring-v1.1.js'
+      - 'scoring-v1.1.test.js'
+      - '.github/workflows/board-check.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check scoring syntax
+        run: node --check scoring-v1.1.js
+      - name: Check app syntax
+        run: node --check app-v1.1.js
+      - name: Run scoring boundary tests
+        run: node scoring-v1.1.test.js
+      - name: Verify index wiring
+        run: |
+          grep -q 'scoring-v1.1.js' index.html
+          grep -q 'app-v1.1.js' index.html
