@@ -17,6 +17,9 @@ function job(overrides={}){
 const now = new Date('2026-09-10T00:00:00+08:00');
 
 assert.equal(S.gate(job({description:'面向2027届应届硕士毕业生，不限专业，负责项目管理。'}),now).passed,false,'仅硕士岗位应Gate Fail');
+assert.equal(S.gate(job({title:'2026校招-业务运营管培生',graduationYear:'2027'}),now).passed,false,'标题明确2026校招时不能被2027字段放行');
+assert.equal(S.gate(job({title:'2026届品牌运营',graduationYear:'2027'}),now).passed,false,'标题明确2026届时不能进入2027主榜');
+assert.equal(S.gate(job({title:'2027届海外运营',graduationYear:'2027'}),now).passed,true,'2027标题应正常通过届别检查');
 assert.equal(S.gate(job({description:'本科及以上，要求日语N1，可作为工作语言。'}),now).passed,false,'必须日语应Gate Fail');
 assert.equal(S.gate(job({description:'本科及以上，英语可作为工作语言，会日语优先。'}),now).passed,true,'日语优先不应Gate Fail');
 assert.equal(S.gate(job({description:'本科及以上，英语或日语其中一种可作为工作语言。'}),now).passed,true,'英语或日语任选应通过');
