@@ -35,6 +35,16 @@ const domestic=S.evaluate(job({title:'产品营销经理（海外业务）-27届
 assert.ok(domestic.risk.items.some(x=>x.label==='城市非目标城市'&&x.value===5),'国内非目标城市仍应仅扣5');
 assert.ok(!domestic.risk.items.some(x=>x.label==='长期海外工作地点'),'东莞不能误判为海外工作地');
 
+const thaiMarket=S.evaluate(job({title:'产品运营管培生（泰国市场）',city:'上海',roleFamily:['产品运营'],description:'工作地点上海，负责泰国市场产品运营。'}),now);
+assert.equal(S.foreignWorkLocation(job({title:'产品运营管培生（泰国市场）',city:'上海'})),false,'服务泰国市场但工作地上海不能算海外工作地');
+assert.ok(!thaiMarket.risk.items.some(x=>x.label==='长期海外工作地点'),'泰国市场上海岗位不能扣海外工作地风险');
+
+const japanService=S.evaluate(job({title:'Associate - Japanese Services Group',city:'深圳',roleFamily:['其他'],description:'工作地点深圳，服务日本客户。'}),now);
+assert.equal(S.foreignWorkLocation(job({title:'Associate - Japanese Services Group',city:'深圳'})),false,'Japanese Services但工作地深圳不能算海外工作地');
+assert.ok(!japanService.risk.items.some(x=>x.label==='长期海外工作地点'),'国内日本业务岗位不能扣海外工作地风险');
+
+assert.equal(S.foreignWorkLocation(job({title:'GTM Product Manager - Germany',city:'待核'})),true,'城市待核时标题明确Germany可推断海外工作地');
+
 const weirdDeadline=S.evaluate(job({deadline:'2029-09-02'}),now);
 assert.equal(weirdDeadline.dataQuality.status,'PARTIAL','2029异常截止日期必须降为PARTIAL');
 assert.ok(['B','C','D'].includes(weirdDeadline.level),'PARTIAL最终推荐不得高于B');
