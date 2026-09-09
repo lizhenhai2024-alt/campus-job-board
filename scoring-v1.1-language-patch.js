@@ -63,6 +63,11 @@
     }
     return false;
   }
+  function explicitNon2027Title(title){
+    title=String(title||'');
+    if(/2027/.test(title)) return false;
+    return /(2025|2026)(届|年)?[^\n]{0,8}(校招|校园招聘)|20(25|26)届/i.test(title);
+  }
   function gate(job,now=new Date()){
     const old=oldGate(job,now),t=sourceText(job);
     const reasons=old.reasons.filter(x=>
@@ -70,6 +75,7 @@
       x!=='学历要求为硕士/研究生，本科不满足' &&
       x!=='存在必须的技术能力门槛'
     );
+    if(explicitNon2027Title(job.title)) reasons.push('岗位标题明确为非2027届');
     if(masterRequired(t)) reasons.push('学历要求为硕士/研究生，本科不满足');
     if(hardTechRequired(t)) reasons.push('存在必须的技术能力门槛');
     const lang=mandatorySmallLanguage(t);
@@ -97,6 +103,7 @@
 
   S.alternativeLanguageSatisfied=alternativesSatisfied;
   S.mandatorySmallLanguage=mandatorySmallLanguage;
+  S.explicitNon2027Title=explicitNon2027Title;
   S.gate=gate;
   S.evaluate=evaluate;
 })(typeof globalThis!=='undefined'?globalThis:this);
