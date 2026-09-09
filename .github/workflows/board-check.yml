@@ -7,6 +7,7 @@ on:
       - 'index.html'
       - 'app-v1.1.js'
       - 'scoring-v1.1.js'
+      - 'scoring-v1.1-language-patch.js'
       - 'scoring-v1.1.test.js'
       - '.github/workflows/board-check.yml'
   workflow_dispatch:
@@ -21,6 +22,8 @@ jobs:
           node-version: 24
       - name: Check scoring syntax
         run: node --check scoring-v1.1.js
+      - name: Check language patch syntax
+        run: node --check scoring-v1.1-language-patch.js
       - name: Check app syntax
         run: node --check app-v1.1.js
       - name: Run scoring boundary tests
@@ -28,4 +31,5 @@ jobs:
       - name: Verify index wiring
         run: |
           grep -q 'scoring-v1.1.js' index.html
+          grep -q 'scoring-v1.1-language-patch.js' index.html
           grep -q 'app-v1.1.js' index.html
