@@ -9,11 +9,13 @@ on:
       - 'scoring-v1.1.js'
       - 'scoring-v1.1-language-patch.js'
       - 'scoring-v1.2-calibration-patch.js'
+      - 'scoring-v1.3-quality-patch.js'
       - 'ui-v1.2-patch.js'
       - 'intelligence-v1.3-patch.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
+      - 'scoring-v1.3-quality.test.js'
       - 'calibrate-v1.1.js'
       - 'calibrate-v1.2.js'
       - '.github/workflows/board-check.yml'
@@ -34,15 +36,14 @@ jobs:
         with:
           node-version: 24
       - name: Check scoring syntax
-        run: node --check scoring-v1.1.js
-      - name: Check language patch syntax
-        run: node --check scoring-v1.1-language-patch.js
-      - name: Check V1.2 calibration patch syntax
-        run: node --check scoring-v1.2-calibration-patch.js
-      - name: Check app syntax
-        run: node --check app-v1.1.js
-      - name: Check UI patches syntax
         run: |
+          node --check scoring-v1.1.js
+          node --check scoring-v1.1-language-patch.js
+          node --check scoring-v1.2-calibration-patch.js
+          node --check scoring-v1.3-quality-patch.js
+      - name: Check app and UI syntax
+        run: |
+          node --check app-v1.1.js
           node --check ui-v1.2-patch.js
           node --check intelligence-v1.3-patch.js
       - name: Check calibration and intelligence audit syntax
@@ -50,10 +51,11 @@ jobs:
           node --check calibrate-v1.1.js
           node --check calibrate-v1.2.js
           node --check audit-intelligence-v1.3.cjs
-      - name: Run V1.1 boundary tests
-        run: node scoring-v1.1.test.js
-      - name: Run V1.2 recommendation tests
-        run: node scoring-v1.2.test.js
+      - name: Run scoring boundary tests
+        run: |
+          node scoring-v1.1.test.js
+          node scoring-v1.2.test.js
+          node scoring-v1.3-quality.test.js
       - name: Calibrate V1.2 against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
       - name: Audit S-A-B intelligence coverage
@@ -71,6 +73,7 @@ jobs:
           grep -q 'scoring-v1.1.js' index.html
           grep -q 'scoring-v1.1-language-patch.js' index.html
           grep -q 'scoring-v1.2-calibration-patch.js' index.html
+          grep -q 'scoring-v1.3-quality-patch.js' index.html
           grep -q 'app-v1.1.js' index.html
           grep -q 'ui-v1.2-patch.js' index.html
           grep -q 'intelligence-v1.3-patch.js' index.html
