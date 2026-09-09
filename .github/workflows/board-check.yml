@@ -58,8 +58,10 @@ jobs:
         run: |
           test -f AI_Job/src/data/company-risk-history.js
           test -f AI_Job/src/core/compensation.js
-          grep -q 'monthlySalary' AI_Job/scripts/enrich-job-compensation.mjs
-          grep -q 'annualSalary' AI_Job/scripts/enrich-job-compensation.mjs
+          test -f AI_Job/scripts/enrich-job-compensation.mjs
+          grep -q 'monthlySalary' AI_Job/src/core/compensation.js
+          grep -q 'annualSalary' AI_Job/src/core/compensation.js
+          grep -q 'companyRiskHistory' AI_Job/src/data/company-risk-history.js
       - name: Verify production wiring
         run: |
           grep -q 'scoring-v1.1.js' index.html
