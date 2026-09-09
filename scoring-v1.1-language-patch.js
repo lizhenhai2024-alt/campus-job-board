@@ -27,6 +27,7 @@
     const f=job.candidateFit||{};
     return [job.title,job.description,job.city,job.company,...arr(job.roleFamily),...arr(job.skills),...arr(job.languages),...arr(job.experienceKeywords),...arr(job.preferenceTags),...arr(job.riskTags),...arr(f.major&&f.major.evidence),...arr(f.eligibilityEvidence),...arr(f.responsibility&&f.responsibility.business),...arr(f.responsibility&&f.responsibility.technical)].filter(Boolean).join(' ');
   }
+  function clauses(t){return String(t||'').split(/[。；;，,\n]/).map(x=>x.trim()).filter(Boolean)}
   function alternativesSatisfied(t){
     return /(英语|英文|English).{0,16}(或|\/|任选|任一|其中一种|至少一种).{0,16}(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean|葡萄牙语|葡语|Portuguese|俄语|Russian|意大利语|Italian|阿拉伯语|Arabic|泰语|Thai|越南语|Vietnamese|印尼语|Indonesian|马来语|Malay)/i.test(t)
       || /(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean|葡萄牙语|葡语|Portuguese|俄语|Russian|意大利语|Italian|阿拉伯语|Arabic|泰语|Thai|越南语|Vietnamese|印尼语|Indonesian|马来语|Malay).{0,16}(或|\/|任选|任一|其中一种|至少一种).{0,16}(英语|英文|English)/i.test(t);
@@ -34,24 +35,46 @@
   function mandatorySmallLanguage(t){
     t=String(t||'');
     if(alternativesSatisfied(t)) return null;
-    const clauses=t.split(/[。；;，,\n]/).map(x=>x.trim()).filter(Boolean);
-    for(const clause of clauses){
+    for(const clause of clauses(t)){
       for(const [name,langRx,certRx] of LANGS){
         if(!langRx.test(clause)) continue;
         const preferred=/(优先|加分|更佳|preferred|plus)/i.test(clause);
         const explicit=/(必须|要求|需具备|须具备|应具备|可作为工作语言|工作语言|熟练|精通)/i.test(clause);
         const cert=certRx&&certRx.test(clause);
-        if((explicit||cert) && !preferred) return name;
+        if((explicit||cert)&&!preferred) return name;
       }
     }
     return null;
   }
+  function masterRequired(t){
+    for(const clause of clauses(t)){
+      const master=/(硕士毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士学历|须为硕士|要求硕士)/i.test(clause);
+      const bachelorAllowed=/本科及以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士|本科以上/i.test(clause);
+      if(master&&!bachelorAllowed) return true;
+    }
+    return false;
+  }
+  function hardTechRequired(t){
+    for(const clause of clauses(t)){
+      if(!/(SQL|Python|Java|C\+\+|编程|数据库)/i.test(clause)) continue;
+      const preferred=/(优先|加分|了解|熟悉者优先)/i.test(clause);
+      const required=/(必须|熟练掌握|要求掌握|须具备|需具备|应具备|精通)/i.test(clause);
+      if(required&&!preferred) return true;
+    }
+    return false;
+  }
   function gate(job,now=new Date()){
-    const old=oldGate(job,now);
-    const reasons=old.reasons.filter(x=>!/^必须.+当前英语画像不满足$/.test(x));
-    const lang=mandatorySmallLanguage(sourceText(job));
+    const old=oldGate(job,now),t=sourceText(job);
+    const reasons=old.reasons.filter(x=>
+      !/^必须.+当前英语画像不满足$/.test(x) &&
+      x!=='学历要求为硕士/研究生，本科不满足' &&
+      x!=='存在必须的技术能力门槛'
+    );
+    if(masterRequired(t)) reasons.push('学历要求为硕士/研究生，本科不满足');
+    if(hardTechRequired(t)) reasons.push('存在必须的技术能力门槛');
+    const lang=mandatorySmallLanguage(t);
     if(lang) reasons.push(`必须${lang}，当前英语画像不满足`);
-    return {passed:reasons.length===0,reasons};
+    return {passed:reasons.length===0,reasons:[...new Set(reasons)]};
   }
   function recalcLevel(base,g){
     if(!g.passed) return '不符合硬条件';
