@@ -19,7 +19,11 @@
     ['泰语',/(泰语|Thai)/i,null],
     ['越南语',/(越南语|Vietnamese)/i,null],
     ['印尼语',/(印尼语|印尼文|Bahasa Indonesia|Indonesian)/i,null],
-    ['马来语',/(马来语|Malay)/i,null]
+    ['马来语',/(马来语|Malay)/i,null],
+    ['瑞典语',/(瑞典语|Swedish)/i,null],
+    ['荷兰语',/(荷兰语|Dutch)/i,null],
+    ['波兰语',/(波兰语|Polish)/i,null],
+    ['土耳其语',/(土耳其语|Turkish)/i,null]
   ];
 
   function arr(v){return Array.isArray(v)?v:v?[v]:[]}
@@ -29,8 +33,8 @@
   }
   function clauses(t){return String(t||'').split(/[。；;，,\n]/).map(x=>x.trim()).filter(Boolean)}
   function alternativesSatisfied(t){
-    return /(英语|英文|English).{0,16}(或|\/|任选|任一|其中一种|至少一种).{0,16}(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean|葡萄牙语|葡语|Portuguese|俄语|Russian|意大利语|Italian|阿拉伯语|Arabic|泰语|Thai|越南语|Vietnamese|印尼语|Indonesian|马来语|Malay)/i.test(t)
-      || /(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean|葡萄牙语|葡语|Portuguese|俄语|Russian|意大利语|Italian|阿拉伯语|Arabic|泰语|Thai|越南语|Vietnamese|印尼语|Indonesian|马来语|Malay).{0,16}(或|\/|任选|任一|其中一种|至少一种).{0,16}(英语|英文|English)/i.test(t);
+    return /(英语|英文|English).{0,16}(或|\/|任选|任一|其中一种|至少一种).{0,16}(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean|葡萄牙语|葡语|Portuguese|俄语|Russian|意大利语|Italian|阿拉伯语|Arabic|泰语|Thai|越南语|Vietnamese|印尼语|Indonesian|马来语|Malay|瑞典语|Swedish|荷兰语|Dutch|波兰语|Polish|土耳其语|Turkish)/i.test(t)
+      || /(日语|日文|Japanese|西班牙语|西语|Spanish|德语|German|法语|French|韩语|Korean|葡萄牙语|葡语|Portuguese|俄语|Russian|意大利语|Italian|阿拉伯语|Arabic|泰语|Thai|越南语|Vietnamese|印尼语|Indonesian|马来语|Malay|瑞典语|Swedish|荷兰语|Dutch|波兰语|Polish|土耳其语|Turkish).{0,16}(或|\/|任选|任一|其中一种|至少一种).{0,16}(英语|英文|English)/i.test(t);
   }
   function mandatorySmallLanguage(t){
     t=String(t||'');
@@ -46,11 +50,19 @@
     }
     return null;
   }
-  function masterRequired(t){
+  function languageSpecificTitle(title){
+    title=String(title||'');
+    for(const [name,langRx] of LANGS){
+      if(new RegExp(`[（(][^）)]*${langRx.source}[^）)]*[）)]`,langRx.flags).test(title)) return name;
+      if(new RegExp(`(?:-|—|\\s)${langRx.source}(?:-|—|\\s|$)`,langRx.flags).test(title)) return name;
+    }
+    return null;
+  }
+  function advancedDegreeRequired(t){
     for(const clause of clauses(t)){
-      const master=/(硕士毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士学历|须为硕士|要求硕士)/i.test(clause);
-      const bachelorAllowed=/本科及以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士|本科以上/i.test(clause);
-      if(master&&!bachelorAllowed) return true;
+      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|硕士毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士学历|须为硕士|要求硕士)/i.test(clause);
+      const bachelorAllowed=/本科及以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士|本科以上|本科\/硕士\/博士|本科、硕士、博士/i.test(clause);
+      if(advanced&&!bachelorAllowed) return true;
     }
     return false;
   }
@@ -76,8 +88,10 @@
       x!=='存在必须的技术能力门槛'
     );
     if(explicitNon2027Title(job.title)) reasons.push('岗位标题明确为非2027届');
-    if(masterRequired(t)) reasons.push('学历要求为硕士/研究生，本科不满足');
+    if(advancedDegreeRequired(t)) reasons.push('学历要求高于本科，本科不满足');
     if(hardTechRequired(t)) reasons.push('存在必须的技术能力门槛');
+    const titleLang=languageSpecificTitle(job.title);
+    if(titleLang&&!alternativesSatisfied(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
     const lang=mandatorySmallLanguage(t);
     if(lang) reasons.push(`必须${lang}，当前英语画像不满足`);
     return {passed:reasons.length===0,reasons:[...new Set(reasons)]};
@@ -87,7 +101,7 @@
     if(base.dataQuality.status==='INVALID') return '数据待修复';
     const p=base.fit.parts,e=base.experienceEvidence;
     if(base.fit.score>=92&&base.dataQuality.score>=8&&p.responsibility>=27&&p.majorLanguage>=16&&p.experience>=21&&e.strongDirect)return'S++';
-    if(base.fit.score>=85)return'S';
+    if(base.fit.score>=85&&base.dataQuality.score>=7&&p.responsibility>=25&&p.majorLanguage>=12&&p.experience>=15)return'S';
     if(base.fit.score>=75)return'A';
     if(base.fit.score>=65)return'B';
     if(base.fit.score>=50)return'C';
@@ -103,6 +117,7 @@
 
   S.alternativeLanguageSatisfied=alternativesSatisfied;
   S.mandatorySmallLanguage=mandatorySmallLanguage;
+  S.languageSpecificTitle=languageSpecificTitle;
   S.explicitNon2027Title=explicitNon2027Title;
   S.gate=gate;
   S.evaluate=evaluate;
