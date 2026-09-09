@@ -1,38 +1,21 @@
 (()=>{'use strict';
 const root=document.getElementById('app');
 if(!root)return;
-
 const NORMAL_LEVELS=new Set(['S++','S','A','B','C','D']);
+function markRecommendationPill(pill){if(!pill||pill.dataset.v12Rec)return;const raw=pill.textContent.trim();if(!NORMAL_LEVELS.has(raw))return;pill.dataset.v12Rec='1';pill.dataset.rawLevel=raw;pill.textContent=`推荐 ${raw}`;pill.title='最终推荐等级（Candidate Fit 经风险与信息可信度调整后）'}
+function patchText(){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=walker.nextNode())){if(n.nodeValue.includes('评价规则 V1.1'))n.nodeValue=n.nodeValue.replaceAll('评价规则 V1.1','评价规则 V1.2');if(n.nodeValue.includes('评价说明 · V1.1'))n.nodeValue=n.nodeValue.replaceAll('评价说明 · V1.1','评价说明 · V1.2')}root.querySelectorAll('.card.help ul').forEach(ul=>{if(ul.querySelector('[data-v12-note]'))return;const li=document.createElement('li');li.dataset.v12Note='1';li.innerHTML='<b>V1.2 推荐层</b>：适配等级与最终推荐等级分离；卡片等级表示“最终推荐”。最终推荐按风险后的优先分调整，PARTIAL 岗位推荐上限为 B，明确海外工作地点按长期海外风险 -15 处理；服务海外市场但工作地点在国内不会触发该项。';ul.appendChild(li)});root.querySelectorAll('.job .level .pill, .modal p .pill').forEach(markRecommendationPill)}
+patchText();new MutationObserver(()=>patchText()).observe(root,{childList:true,subtree:true});
 
-function markRecommendationPill(pill){
-  if(!pill||pill.dataset.v12Rec)return;
-  const raw=pill.textContent.trim();
-  if(!NORMAL_LEVELS.has(raw))return;
-  pill.dataset.v12Rec='1';
-  pill.dataset.rawLevel=raw;
-  pill.textContent=`推荐 ${raw}`;
-  pill.title='最终推荐等级（Candidate Fit 经风险与信息可信度调整后）';
-}
-
-function patchText(){
-  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-  let n;
-  while((n=walker.nextNode())){
-    if(n.nodeValue.includes('评价规则 V1.1')) n.nodeValue=n.nodeValue.replaceAll('评价规则 V1.1','评价规则 V1.2');
-    if(n.nodeValue.includes('评价说明 · V1.1')) n.nodeValue=n.nodeValue.replaceAll('评价说明 · V1.1','评价说明 · V1.2');
-  }
-
-  root.querySelectorAll('.card.help ul').forEach(ul=>{
-    if(ul.querySelector('[data-v12-note]'))return;
-    const li=document.createElement('li');
-    li.dataset.v12Note='1';
-    li.innerHTML='<b>V1.2 推荐层</b>：适配等级与最终推荐等级分离；卡片等级表示“最终推荐”。最终推荐按风险后的优先分调整，PARTIAL 岗位推荐上限为 B，明确海外工作地点按长期海外风险 -15 处理；服务海外市场但工作地点在国内不会触发该项。';
-    ul.appendChild(li);
-  });
-
-  root.querySelectorAll('.job .level .pill, .modal p .pill').forEach(markRecommendationPill);
-}
-
-patchText();
-new MutationObserver(()=>patchText()).observe(root,{childList:true,subtree:true});
+function txt(el){return(el?.textContent||'').trim()}
+function parseMetric(card,key){const s=txt(card.querySelector('.level small'));const m=s.match(key==='fit'?/适配\s*(\d+)\/100/:/优先\s*(\d+)/);return m?m[1]:'—'}
+function metaParts(card){return[...card.querySelectorAll('.meta span')].map(x=>txt(x).replace(/^[📍🧭🗓]\s*/,'').trim())}
+function installDecisionStyle(){if(document.getElementById('decision-ui-v14-style'))return;const s=document.createElement('style');s.id='decision-ui-v14-style';s.textContent='.decision-quick{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.decision-quick-label{font-size:12px;color:var(--muted);font-weight:700;margin-right:2px}.quick-btn{border:1px solid var(--line-strong);background:#fff;color:#556176;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s ease}.quick-btn:hover{border-color:#b8c3d8;background:#fafbff}.quick-btn.active{background:var(--blue-soft);border-color:var(--blue-line);color:var(--blue)}.quick-btn.official.active{background:var(--greenbg);border-color:#cdeee0;color:var(--green)}.decision-grid{display:grid;grid-template-columns:1.25fr .85fr .85fr;gap:8px;margin:12px 0 0}.decision-cell{background:#f8faff;border:1px solid #e9edf5;border-radius:10px;padding:8px 10px;min-width:0}.decision-cell span{display:block;font-size:10px;color:#8b95a7;font-weight:700;letter-spacing:.2px;margin-bottom:1px}.decision-cell b{display:block;font-size:13px;color:#2c3b58;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.decision-cell.fit b{color:#3159d8}.decision-cell.priority b{color:#16825d}.decision-why{display:flex;gap:8px;align-items:flex-start;margin-top:9px;padding:8px 10px;border-radius:10px;background:#fbfcfe;border:1px solid #edf0f5;color:#647087;font-size:12px}.decision-why strong{color:#46536b;white-space:nowrap}.decision-why span{min-width:0}.job .tags{margin-top:8px}.job .tags .tag{opacity:.82;font-size:11px}.job .tags .tag[data-secondary="1"]{background:#fafbfc;border-color:#edf0f4;color:#8a94a6}.job .tags .tag[data-risk="1"]{opacity:1;background:var(--amberbg);border-color:#efdcaf;color:var(--amber)}.job .match{min-width:0}.job .match .level{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}.job .match .level small{display:block;margin:0}.job .matchreason{display:none}.job .actions{justify-content:flex-end}.job .actions .btn.primary{min-width:88px}.summary{padding:0 2px}.summary b{font-size:15px}@media(max-width:780px){.decision-grid{grid-template-columns:1fr 1fr}.decision-cell:first-child{grid-column:1/-1}.job .match .level{justify-content:flex-start}.job .actions{justify-content:flex-start}.decision-why{line-height:1.5}}@media(max-width:480px){.decision-grid{grid-template-columns:1fr}.decision-cell:first-child{grid-column:auto}.quick-btn{padding:5px 9px}}';document.head.appendChild(s)}
+function markTags(card){card.querySelectorAll('.tags .tag').forEach(tag=>{const t=txt(tag);if(/信息\s*\d+\/10|VALID|待核|待修复|官方来源|二手来源/.test(t))tag.dataset.secondary='1';if(/风险|长期|出差|高压|KPI|历史风险/.test(t))tag.dataset.risk='1'})}
+function decorateCard(card){if(!card.dataset.decisionV14){const meta=card.querySelector('.meta'),tags=card.querySelector('.tags');if(!meta||!tags)return;const parts=metaParts(card),direction=parts[1]||'方向待核',fit=parseMetric(card,'fit'),priority=parseMetric(card,'priority');const grid=document.createElement('div');grid.className='decision-grid';grid.innerHTML='<div class="decision-cell"><span>岗位方向</span><b></b></div><div class="decision-cell fit"><span>候选人适配</span><b></b></div><div class="decision-cell priority"><span>投递优先分</span><b></b></div>';grid.children[0].querySelector('b').textContent=direction;grid.children[1].querySelector('b').textContent=fit==='—'?'—':fit+' / 100';grid.children[2].querySelector('b').textContent=priority;tags.insertAdjacentElement('beforebegin',grid);const reason=txt(card.querySelector('.matchreason'))||'查看评价详情获取完整判断依据';const why=document.createElement('div');why.className='decision-why';const strong=document.createElement('strong');strong.textContent='推荐判断';const span=document.createElement('span');span.textContent=reason;why.append(strong,span);grid.insertAdjacentElement('afterend',why);card.dataset.decisionV14='1'}markTags(card)}
+function setSelect(id,value){const el=root.querySelector(id);if(!el)return;el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}))}
+function decorateQuick(){const rule=root.querySelector('.ruleline');if(!rule||rule.querySelector('.decision-quick'))return;const level=root.querySelector('#level'),source=root.querySelector('#source');if(!level||!source)return;const box=document.createElement('div');box.className='decision-quick';const label=document.createElement('span');label.className='decision-quick-label';label.textContent='快速筛选';box.appendChild(label);['全部','S++','S','A','B'].forEach(v=>{const b=document.createElement('button');b.className='quick-btn';b.dataset.qlevel=v;b.textContent=v==='全部'?'全部岗位':v;box.appendChild(b)});const official=document.createElement('button');official.className='quick-btn official';official.dataset.official='1';official.textContent='只看官方';box.appendChild(official);rule.insertAdjacentElement('afterbegin',box);box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.qlevel)setSelect('#level',b.dataset.qlevel);else if(b.dataset.official)setSelect('#source',source.value==='官方'?'全部':'官方')});box.querySelectorAll('[data-qlevel]').forEach(b=>b.classList.toggle('active',b.dataset.qlevel===level.value));official.classList.toggle('active',source.value==='官方')}
+function renameSummary(){root.querySelectorAll('.summary .muted').forEach(n=>{if(/排序/.test(txt(n)))n.textContent='按最终推荐等级 → 候选人适配 → 投递优先分排序'})}
+function decorateDecision(){installDecisionStyle();decorateQuick();renameSummary();root.querySelectorAll('.card.job').forEach(decorateCard)}
+let queued=false;function schedule(){if(queued)return;queued=true;queueMicrotask(()=>{queued=false;decorateDecision()})}
+decorateDecision();new MutationObserver(schedule).observe(root,{childList:true,subtree:true});
 })();
