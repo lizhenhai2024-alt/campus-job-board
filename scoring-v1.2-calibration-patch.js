@@ -6,13 +6,14 @@
   const oldEvaluate=S.evaluate;
 
   const LEVEL_RANK={'S++':6,'S':5,'A':4,'B':3,'C':2,'D':1,'不符合硬条件':0,'数据待修复':-1};
-  const FOREIGN_RX=/(国外|Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|Seattle|United States|USA|\bUS\b|Turkey|United Kingdom|\bUK\b|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|New Zealand|Poland|Czech|Hungary|Romania|UAE|Saudi|India|Chile|Peru|Colombia|Argentina|South Africa|Egypt|Kenya|Nigeria|德国|荷兰|墨西哥|菲律宾|迪拜|巴西|加拿大|瑞典|美国|土耳其|英国|法国|西班牙|意大利|日本|韩国|泰国|越南|印尼|马来西亚|新加坡|澳大利亚|新西兰|波兰|捷克|匈牙利|罗马尼亚|阿联酋|沙特|印度|智利|秘鲁|哥伦比亚|阿根廷|南非|埃及|肯尼亚|尼日利亚|杜塞尔多夫|鹿特丹|墨西哥城|马尼拉|圣保罗|温哥华|松德比贝里|西雅图|巴尔韦伦)/i;
+  const FOREIGN_CITY_RX=/(国外|Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|Seattle|United States|USA|\bUS\b|Turkey|United Kingdom|\bUK\b|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|New Zealand|Poland|Czech|Hungary|Romania|UAE|Saudi|India|Chile|Peru|Colombia|Argentina|South Africa|Egypt|Kenya|Nigeria|德国|荷兰|墨西哥|菲律宾|迪拜|巴西|加拿大|瑞典|美国|土耳其|英国|法国|西班牙|意大利|日本|韩国|泰国|越南|印尼|马来西亚|新加坡|澳大利亚|新西兰|波兰|捷克|匈牙利|罗马尼亚|阿联酋|沙特|印度|智利|秘鲁|哥伦比亚|阿根廷|南非|埃及|肯尼亚|尼日利亚|杜塞尔多夫|鹿特丹|墨西哥城|马尼拉|圣保罗|温哥华|松德比贝里|西雅图|巴尔韦伦)/i;
+  const EXPLICIT_FOREIGN_TITLE_RX=/(?:-|–|—|\(|（)\s*(Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|Seattle|US|USA|Turkey|UK|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|New Zealand|Poland|Czech|Hungary|Romania|UAE|Saudi|India|德国|荷兰|墨西哥|菲律宾|迪拜|巴西|加拿大|瑞典|美国|土耳其|英国|法国|西班牙|意大利|日本|韩国|泰国|越南|印尼|马来西亚|新加坡|澳大利亚|新西兰)\s*(?:\)|）|$)|(?:工作地|工作地点|base|location)\s*[:：]?\s*(国外|海外|Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|US|USA|Turkey|UK|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Singapore)/i;
 
   function foreignWorkLocation(job){
-    const city=String(job.city||'');
-    const title=String(job.title||'');
-    if(!city&&!title) return false;
-    return FOREIGN_RX.test(`${city} ${title}`);
+    const city=String(job.city||'').trim();
+    const title=String(job.title||'').trim();
+    if(city && !/^(待核|未知|全国|不限|-)$/.test(city)) return FOREIGN_CITY_RX.test(city);
+    return EXPLICIT_FOREIGN_TITLE_RX.test(title);
   }
 
   function implausibleDeadline(deadline){
