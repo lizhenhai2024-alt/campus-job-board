@@ -15,6 +15,20 @@ on:
       - 'calibrate-v1.1.js'
       - 'calibrate-v1.2.js'
       - '.github/workflows/board-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'scoring.js'
+      - 'audit-intelligence-v1.3.cjs'
+      - 'audit-regression.cjs'
+      - 'scoring-v1.1.test.js'
+      - 'scoring-v1.2.test.js'
+      - 'scoring-v1.3-quality.test.js'
+      - 'calibrate-v1.1.js'
+      - 'calibrate-v1.2.js'
+      - '.github/workflows/board-check.yml'
   workflow_dispatch:
 
 jobs:
@@ -53,26 +67,56 @@ jobs:
       - name: Regression audit - language gate & translation scoring
         run: node audit-regression.cjs AI_Job
       - name: Verify intelligence source files exist
+        shell: bash
         run: |
-          test -f AI_Job/src/data/company-risk-history.js
-          test -f AI_Job/src/data/company-risk-history-priority.js
-          test -f AI_Job/src/core/company-risk.js
-          test -f AI_Job/src/core/compensation.js
-          test -f AI_Job/scripts/enrich-job-compensation.mjs
-          grep -q 'monthlySalary' AI_Job/src/core/compensation.js
-          grep -q 'annualSalary' AI_Job/src/core/compensation.js
-          grep -q 'companyRiskHistory' AI_Job/src/data/company-risk-history.js
-          grep -q 'priorityCompanyRiskHistory' AI_Job/src/data/company-risk-history-priority.js
-          grep -q 'mergedCompanyRiskHistory' AI_Job/src/core/company-risk.js
+          set -euo pipefail
+          check() {
+            local label="$1"
+            shift
+            if "$@"; then
+              echo "PASS: $label"
+            else
+              echo "::error::$label"
+              exit 1
+            fi
+          }
+          check "company risk history exists" test -f AI_Job/src/data/company-risk-history.js
+          check "priority risk history exists" test -f AI_Job/src/data/company-risk-history-priority.js
+          check "company risk core exists" test -f AI_Job/src/core/company-risk.js
+          check "compensation core exists" test -f AI_Job/src/core/compensation.js
+          check "compensation enrichment exists" test -f AI_Job/scripts/enrich-job-compensation.mjs
+          check "monthly salary wiring exists" grep -q 'monthlySalary' AI_Job/src/core/compensation.js
+          check "annual salary wiring exists" grep -q 'annualSalary' AI_Job/src/core/compensation.js
+          check "company risk history export exists" grep -q 'companyRiskHistory' AI_Job/src/data/company-risk-history.js
+          check "priority company risk history export exists" grep -q 'priorityCompanyRiskHistory' AI_Job/src/data/company-risk-history-priority.js
+          check "merged risk history wiring exists" grep -q 'mergedCompanyRiskHistory' AI_Job/src/core/company-risk.js
       - name: Verify production wiring
+        shell: bash
         run: |
-          grep -q 'scoring.js' index.html
-          grep -q 'app.js' index.html
-          ! grep -q 'scoring-v1.1.js' index.html
-          grep -q 'company-risk-history-priority.js' app.js
-          grep -q 'priorityCompanyRiskHistory' app.js
-          grep -q 'RISK_SOURCE_GUIDE' app.js
-          grep -q 'CampusShame' app.js
-          grep -q '牛客' app.js
-          grep -q '脉脉' app.js
-          grep -q '默认按 C 级二手社区线索处理' app.js
+          set -euo pipefail
+          check() {
+            local label="$1"
+            shift
+            if "$@"; then
+              echo "PASS: $label"
+            else
+              echo "::error::$label"
+              exit 1
+            fi
+          }
+          check "index.html is non-empty" test -s index.html
+          check "index loads scoring.js" grep -q 'scoring.js' index.html
+          check "index loads app.js" grep -q 'app.js' index.html
+          if grep -q 'scoring-v1.1.js' index.html; then
+            echo "::error::legacy scoring-v1.1.js must not be wired in production"
+            exit 1
+          else
+            echo "PASS: legacy scoring-v1.1.js is not wired"
+          fi
+          check "priority risk source is wired" grep -q 'company-risk-history-priority.js' app.js
+          check "priority risk export is consumed" grep -q 'priorityCompanyRiskHistory' app.js
+          check "risk source guide is present" grep -q 'RISK_SOURCE_GUIDE' app.js
+          check "CampusShame source guidance is present" grep -q 'CampusShame' app.js
+          check "Nowcoder source guidance is present" grep -q '牛客' app.js
+          check "Maimai source guidance is present" grep -q '脉脉' app.js
+          check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' app.js
