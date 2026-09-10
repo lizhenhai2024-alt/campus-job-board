@@ -261,6 +261,8 @@ a{color:inherit}
 .row-reason{font-size:11.5px;color:var(--muted);line-height:1.4}
 .cell-main{min-width:0}
 .company{font-size:12px;font-weight:700;color:var(--ink-2);letter-spacing:.2px}
+.company-name{background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.company-name:hover{text-decoration:underline}
 .row-title{
   font-size:15px;font-weight:700;color:var(--ink);margin:2px 0 8px;
   overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
@@ -1224,7 +1226,7 @@ const DISPLAY_LEVEL=l=>l==='S++'?'S':l;
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
-const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部'},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:40,sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
+const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:''},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:40,sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
 const app=document.getElementById('app');
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uniq=a=>[...new Set(a.filter(Boolean))];
@@ -1269,6 +1271,7 @@ function filtered(){
     const ev=j._evaluation,hay=[j.company,j.title,j.city,ev.direction,...(j.skills||[])].join(' ').toLowerCase();
     const src=j.sourceType==='official'?'官方':'二手';
     return(!q||hay.includes(q))
+      &&(!f.company||sameCompany(j.company,f.company))
       &&(master||f.level==='全部'||ev.level===f.level||(f.level==='S'&&ev.level==='S++'))
       &&(f.direction==='全部'||ev.direction===f.direction)
       &&(f.city==='全部'||j.city===f.city)
@@ -1299,10 +1302,12 @@ function jobCard(j){
   const stage=S.status[j.id];
   const applyControl=stage?`<span class="applied">✓ ${esc(stage)}</span>`:`<button class="btn ghost" data-quick-apply="${esc(j.id)}">＋ 加入已投递</button>`;
   const priCls=v.priorityScore>=85?'hi':v.priorityScore>=75?'mid':'';
+  const cm=companyMetaFor(j.company);
+  const companyName=cm&&cm.fullName?cm.fullName:(j.company||'待核公司');
   return`<article class="row">
     <div class="cell-grade"><span class="pill ${pillCls}">${esc(pillText)}</span><span class="row-reason">${esc(reason)}</span></div>
     <div class="cell-main">
-      <div class="company">${esc(j.company||'待核公司')}${(()=>{const cm=companyMetaFor(j.company);if(!cm)return'';return (cm.fullName&&cm.fullName!==j.company?`<span class="muted" style="font-weight:400;font-size:12px;margin-left:6px">${esc(cm.fullName)}</span>`:'')+(cm.scale||cm.nature?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:'');})()}</div>
+      <div class="company"><button class="company-name" data-company="${esc(companyKey(j.company))}" data-company-label="${esc(companyName)}" title="查看该公司全部岗位">${esc(companyName)}</button>${cm&&(cm.scale||cm.nature)?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}</div>
       <h3 class="row-title">${esc(j.title||'待核岗位')}</h3>
       <div class="tags">
         <span class="tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${esc(j.city||'待核')}</span>
@@ -1384,7 +1389,7 @@ function jobsPage(){
       <span class="quick-note">${S.filter.degree==='硕士'?'硕士及以上岗位池 · 当前本科画像仅供参考':'仅显示<b>本科可投</b>岗位；硕士/博士及其他硬门槛岗位默认排除'}</span>
     </div>
   </div>
-  <div class="summary"><b>共 ${list.length} 个岗位</b><span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'按最终推荐等级 → 候选人适配 → 投递优先分排序'}</span></div>
+  <div class="summary"><b>共 ${list.length} 个岗位</b>${S.filter.company?`<button class="btn ghost" id="clear-company" style="margin-left:10px;padding:2px 10px;font-size:12px">公司：${esc(S.filter.companyLabel)} ×</button>`:''}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'按最终推荐等级 → 候选人适配 → 投递优先分排序'}</span></div>
   <div class="list">${list.slice(0,S.limit).map(jobCard).join('')||'<div class="empty">没有符合当前筛选条件的岗位</div>'}</div>
   ${list.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多</button></p>':''}
   ${dataNotes()}
@@ -1451,11 +1456,13 @@ function riskEventRow(event){
 }
 function modal(){if(!S.selected)return'';const j=evaluated().find(x=>x.id===S.selected);if(!j)return'';const v=j._evaluation,p=v.fit.parts,r=v.reasoning;
   const comp=j.compensation||{},events=riskEvents(riskFor(j.company));
+  const cm=companyMetaFor(j.company);
+  const companyName=cm&&cm.fullName?cm.fullName:(j.company||'待核公司');
   const partRows=[['职责',p.responsibility,30,r.responsibility],['专业语言',p.majorLanguage,20,r.major],['真实经历',p.experience,25,r.experience],['方向价值',p.careerValue,15,r.career],['可补足能力',p.learnability,10,r.learnability]].map(([l,s,m,t])=>`<div class="part"><div class="part-head"><span>${l}</span><b>${s}<i> /${m}</i></b></div><div class="bar"><i style="width:${Math.min(100,s/m*100)}%"></i></div><p class="muted">${esc(t)}</p></div>`).join('');
   return`<div class="drawer-bg" data-close="1"><aside class="drawer">
     <header class="drawer-head">
       <button class="drawer-close" data-close="1" title="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      <div class="company">${esc(j.company||'待核公司')}${(()=>{const cm=companyMetaFor(j.company);if(!cm)return'';return (cm.fullName&&cm.fullName!==j.company?`<span class="muted" style="font-weight:400;font-size:12px;margin-left:6px">${esc(cm.fullName)}</span>`:'')+(cm.scale||cm.nature?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:'');})()}</div>
+      <div class="company"><button class="company-name" data-company="${esc(companyKey(j.company))}" data-company-label="${esc(companyName)}" title="查看该公司全部岗位">${esc(companyName)}</button>${cm&&(cm.scale||cm.nature)?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}</div>
       <h2>${esc(j.title||'待核岗位')}</h2>
       <div class="drawer-kpis">
         <span><b>${esc(recLabel(v.level))}</b> 最终推荐</span>
@@ -1557,7 +1564,9 @@ app.addEventListener('click',ev=>{
     if(ev.target.classList?.contains('drawer-bg')){S.selected=null;render();return}
     if(ev.target.closest('.drawer'))return;
   }
-  if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部'};render();return}
+  if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:''};render();return}
+  if(ev.target.id==='clear-company'){S.filter.company='';S.filter.companyLabel='';render();return}
+  const companyBtn=ev.target.closest('[data-company]');if(companyBtn){S.filter.company=companyBtn.dataset.company;S.filter.companyLabel=companyBtn.dataset.companyLabel||companyBtn.dataset.company;render();return}
   if(ev.target.id==='more'){S.limit+=40;render();return}
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
