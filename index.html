@@ -1216,9 +1216,10 @@ const RISK_SOURCE_GUIDE=[
 const STORAGE='campus-job-board:redesign:v1';
 const SYNC_SECRET_KEY='campus-job-board:sync-secret';
 const STAGES=['已收藏','已投递','笔试','面试','Offer','淘汰'];
-const LEVELS=['全部','S++','S','A','B','C','D','数据待修复'];
-const QUICK_LEVELS=['全部','S++','S','A','B'];
+const LEVELS=['全部','S','A','B','C','D','数据待修复'];
+const QUICK_LEVELS=['全部','S','A','B'];
 const NORMAL_LEVELS=new Set(['S++','S','A','B','C','D']);
+const DISPLAY_LEVEL=l=>l==='S++'?'S':l;
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
@@ -1228,7 +1229,7 @@ const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'
 const uniq=a=>[...new Set(a.filter(Boolean))];
 function save(){S.updatedAt=Date.now();localStorage.setItem(STORAGE,JSON.stringify({status:S.status,offerScores:S.offerScores,updatedAt:S.updatedAt}));pushRemote()}
 const levelClass=l=>l==='S++'||l==='S'?'s':l==='A'?'a':l==='B'?'b':l==='数据待修复'||l==='不符合硬条件'?'bad':'c';
-const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${l}`:l;
+const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${DISPLAY_LEVEL(l)}`:DISPLAY_LEVEL(l);
 
 /* ---- 公司风险情报（与原站一致） ---- */
 function companyKey(v=''){return String(v).replace(/[（(].*?[）)]/g,'').replace(/股份有限公司|集团有限公司|有限公司|集团|控股|中国/gi,'').replace(/[\s·,.，、_-]/g,'').toLowerCase();}
@@ -1264,7 +1265,7 @@ function filtered(){
     const ev=j._evaluation,hay=[j.company,j.title,j.city,ev.direction,...(j.skills||[])].join(' ').toLowerCase();
     const src=j.sourceType==='official'?'官方':'二手';
     return(!q||hay.includes(q))
-      &&(master||f.level==='全部'||ev.level===f.level)
+      &&(master||f.level==='全部'||ev.level===f.level||(f.level==='S'&&ev.level==='S++'))
       &&(f.direction==='全部'||ev.direction===f.direction)
       &&(f.city==='全部'||j.city===f.city)
       &&(f.source==='全部'||src===f.source)
@@ -1360,7 +1361,7 @@ function jobsPage(){
       </div>
       <div class="hero-dirs"><span class="dir-title">目标方向</span><div class="dir-chips">${dirChips}</div></div>
     </div>
-    ${statBoxes([[normal.length,'本科可投岗位',''],[ss,'S++ / S','s'],[a,'A级','a'],[uniq(normal.map(x=>x._evaluation.direction)).length,'覆盖方向',''],[partial,'待核岗位','warn'],[invalid,'数据待修复','bad']])}
+    ${statBoxes([[normal.length,'本科可投岗位',''],[ss,'S 核心优先','s'],[a,'A级','a'],[uniq(normal.map(x=>x._evaluation.direction)).length,'覆盖方向',''],[partial,'待核岗位','warn'],[invalid,'数据待修复','bad']])}
   </div></section>
   <div class="console">
     <div class="filter-row">
@@ -1375,7 +1376,7 @@ function jobsPage(){
     </div>
     <div class="quick-row">
       ${quickFilters()}
-      <div class="legend"><span class="pill s">S++ / S 核心优先</span><span class="pill a">A 重点投</span><span class="pill b">B 可尝试</span><span class="pill c">C / D 低优先</span></div>
+      <div class="legend"><span class="pill s">S 核心优先</span><span class="pill a">A 重点投</span><span class="pill b">B 可尝试</span><span class="pill c">C / D 低优先</span></div>
       <span class="quick-note">${S.filter.degree==='硕士'?'硕士及以上岗位池 · 当前本科画像仅供参考':'仅显示<b>本科可投</b>岗位；硕士/博士及其他硬门槛岗位默认排除'}</span>
     </div>
   </div>
@@ -1412,11 +1413,11 @@ function statsPage(){
   const tracked=evaluated().filter(j=>S.status[j.id]);
   if(!tracked.length) return`<div class="wrap"><div class="page-title"><h1>统计分析</h1><p>统计的是「我的投递」里跟踪的岗位，目前还没有记录。</p></div><div class="empty">先在机会看板里给岗位点"加入已投递"，这里会显示投递阶段、推荐等级、方向和来源的统计。</div>${dataNotes()}</div>`;
   const byDir=Object.entries(tracked.reduce((m,j)=>(m[j._evaluation.direction]=(m[j._evaluation.direction]||0)+1,m),{})).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const gradeFill={'S++':'fill-s',S:'fill-s',A:'fill-a',B:'fill-b',C:'fill-c',D:'fill-c'};
+  const gradeFill={'S':'fill-s',A:'fill-a',B:'fill-b',C:'fill-c',D:'fill-c'};
   return`<div class="wrap"><div class="page-title"><h1>统计分析</h1><p>针对「我的投递」里跟踪的 ${tracked.length} 个岗位统计。</p></div>
   <div class="charts">
     <div class="chart"><h3>投递阶段</h3>${bars(STAGES.map(s=>[s,tracked.filter(j=>S.status[j.id]===s).length]))}</div>
-    <div class="chart"><h3>推荐等级</h3>${bars(['S++','S','A','B','C','D'].map(x=>[x,tracked.filter(j=>j._evaluation.level===x).length,gradeFill[x]]))}</div>
+    <div class="chart"><h3>推荐等级</h3>${bars(['S','A','B','C','D'].map(x=>[x,tracked.filter(j=>x==='S'?['S++','S'].includes(j._evaluation.level):j._evaluation.level===x).length,gradeFill[x]]))}</div>
     <div class="chart"><h3>方向分布</h3>${bars(byDir)}</div>
     <div class="chart"><h3>来源</h3>${bars([['官方',tracked.filter(j=>j.sourceType==='official').length,'fill-a'],['二手',tracked.filter(j=>j.sourceType!=='official').length,'fill-c']])}</div>
   </div>${dataNotes()}</div>`
@@ -1558,7 +1559,7 @@ app.addEventListener('click',ev=>{
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
   const quickApply=ev.target.closest('[data-quick-apply]')?.dataset.quickApply;if(quickApply){S.status[quickApply]='已投递';save();render();return}
   if(ev.target.id==='export-json'){download('campus-job-board-applications.json',JSON.stringify({status:S.status,offerScores:S.offerScores,exportedAt:new Date().toISOString()},null,2));return}
-  if(ev.target.id==='export-csv'){const rows=[['岗位ID','公司','岗位','状态','等级','适配度','优先分','信息质量'],...evaluated().filter(j=>S.status[j.id]).map(j=>[j.id,j.company,j.title,S.status[j.id],j._evaluation.level,j._evaluation.fit.score,j._evaluation.priorityScore,j._evaluation.dataQuality.status])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');download('campus-job-board-applications.csv',csv,'text/csv;charset=utf-8');return}
+  if(ev.target.id==='export-csv'){const rows=[['岗位ID','公司','岗位','状态','等级','适配度','优先分','信息质量'],...evaluated().filter(j=>S.status[j.id]).map(j=>[j.id,j.company,j.title,S.status[j.id],DISPLAY_LEVEL(j._evaluation.level),j._evaluation.fit.score,j._evaluation.priorityScore,j._evaluation.dataQuality.status])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');download('campus-job-board-applications.csv',csv,'text/csv;charset=utf-8');return}
   if(ev.target.id==='import-json'){document.getElementById('import-file')?.click();return}
   if(ev.target.id==='sync-save'){const v=(document.getElementById('sync-secret')?.value||'').trim();S.sync.secret=v;if(v)localStorage.setItem(SYNC_SECRET_KEY,v);else localStorage.removeItem(SYNC_SECRET_KEY);if(v)pullRemote();else render();return}
   if(ev.target.id==='sync-now'){pullRemote();return}
