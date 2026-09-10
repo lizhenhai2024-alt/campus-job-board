@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -378,6 +378,10 @@ a{color:inherit}
 .part .bar{margin-top:7px}
 .part p.muted{margin-top:7px;font-size:11.5px;color:var(--muted);line-height:1.55}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.jd-block{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.jd-block h4{font-size:13px;font-weight:750;color:var(--ink);margin:0 0 8px}
+.jd-list{margin:0;padding-left:18px;font-size:12.5px;line-height:1.7;color:var(--text2)}
+.jd-list li{margin-bottom:3px}
 .kv .cell{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
 .kv .cell span{display:block;font-size:10.5px;color:var(--faint);font-weight:600;margin-bottom:2px}
 .kv .cell b{font-size:12.5px;font-weight:700;word-break:break-all}
@@ -1448,6 +1452,17 @@ function offersPage(){
   <div class="table-card"><table><thead><tr><th>公司 / 岗位</th><th>城市</th><th>薪资</th><th>适配</th><th>成长</th><th>薪酬</th><th>城市偏好</th><th>节奏</th><th>综合</th><th>备注</th></tr></thead><tbody>${sorted.map(offerRow).join('')}</tbody></table></div></div>`
 }
 
+/* ---- 岗位JD详情 ---- */
+function jobDetailSection(j){
+  const desc = j.jobDescription || j.description || '';
+  const req = j.jobRequirements || '';
+  const fmt = t => String(t||'').trim().replace(/\r\n/g,'\n').split('\n').filter(s=>s.trim()).map(s=>`<li>${esc(s.trim())}</li>`).join('');
+  const parts = [];
+  if(desc) parts.push(`<div class="jd-block"><h4>岗位职责</h4><ul class="jd-list">${fmt(desc)}</ul></div>`);
+  if(req) parts.push(`<div class="jd-block"><h4>任职要求</h4><ul class="jd-list">${fmt(req)}</ul></div>`);
+  if(!parts.length) return '<div class="note" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px">该岗位暂无结构化JD文本，可点击下方"打开官方职位"查看原文。</div>';
+  return parts.join('');
+}
 /* ---- 评价详情抽屉 ---- */
 function detailBox(label,value){return`<div class="cell"><span>${esc(label)}</span><b>${esc(value||'未披露')}</b></div>`}
 function riskEventRow(event){
@@ -1473,6 +1488,7 @@ function modal(){if(!S.selected)return'';const j=evaluated().find(x=>x.id===S.se
     </header>
     <div class="drawer-body">
       <section><h3>五维适配</h3>${partRows}</section>
+      <section><h3>岗位JD</h3>${jobDetailSection(j)}</section>
       <section><h3>薪资情报</h3><div class="kv">${detailBox('月薪',j.monthlySalary||comp.monthlyDisplay)}${detailBox('年薪',j.annualSalary||comp.annualDisplay)}${detailBox('原始薪资',comp.raw||j.salary)}${detailBox('薪资来源',comp.sourceLabel)}${detailBox('薪资可信度',confidenceLabel(comp))}${detailBox('薪资证据',comp.evidence)}</div><p class="note">月薪/年薪只使用来源页或JD明确披露数字；未写薪数时仅按12薪估算，并显式标记。不擅自加入年终奖、股票、补贴或绩效奖金。</p></section>
       <section><h3>公司往年风险事件 / 实习留用线索</h3>${riskSourceGuide()}${events.length?events.slice(0,5).map(riskEventRow).join(''):'<div class="note" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px">暂无满足"时间 + 来源 + 可追溯链接 + 证据等级"要求的已录入事件；这不等于"无风险"，仍需核验具体团队和年份。</div>'}<p class="note">历史事件不等于当前状态；A/B级可作为高可信风险情报，C级社区经验只用于面试反问/核验，D级传闻默认隐藏。公司历史风险不参与本看板 S/A/B 或 Candidate Fit 计算。</p></section>
       <section><h3>Gate / 风险</h3><div class="tags">${v.gate.reasons.map(x=>`<span class="tag bad">× ${esc(x)}</span>`).join('')}${v.risk.items.map(x=>`<span class="tag warn">${esc(x.label)} -${x.value}</span>`).join('')}${v.gate.passed&&!v.risk.items.length?'<span class="tag ok">硬条件通过 · 无明显风险</span>':''}</div></section>
