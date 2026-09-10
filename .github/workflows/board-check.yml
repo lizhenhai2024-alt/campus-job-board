@@ -8,6 +8,7 @@ on:
       - 'app.js'
       - 'scoring.js'
       - 'audit-intelligence-v1.3.cjs'
+      - 'audit-regression.cjs'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
       - 'scoring-v1.3-quality.test.js'
@@ -39,6 +40,7 @@ jobs:
           node --check calibrate-v1.1.js
           node --check calibrate-v1.2.js
           node --check audit-intelligence-v1.3.cjs
+          node --check audit-regression.cjs
       - name: Run scoring boundary tests
         run: |
           node scoring-v1.1.test.js
@@ -48,6 +50,8 @@ jobs:
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
       - name: Audit S-A-B intelligence coverage
         run: node audit-intelligence-v1.3.cjs AI_Job
+      - name: Regression audit - language gate & translation scoring
+        run: node audit-regression.cjs AI_Job
       - name: Verify intelligence source files exist
         run: |
           test -f AI_Job/src/data/company-risk-history.js

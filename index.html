@@ -597,7 +597,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
 
   const CITY_SCORE = {深圳:10,广州:9,上海:9,武汉:8,长沙:8,北京:7,杭州:7,苏州:7};
   const TECH_TITLE = /研发工程师|算法工程师|软件工程师|硬件工程师|机械工程师|电气工程师|结构工程师|测试工程师|实施工程师|开发工程师/i;
-  const LOW_VALUE = /纯翻译|翻译专员|行政|文员|跟单|客服专员|销售代表|渠道销售|区域销售|纯销售/i;
+  const LOW_VALUE = /纯翻译|翻译专员|本地化|行政|文员|跟单|客服专员|销售代表|渠道销售|区域销售|纯销售/i;
   const SPECIALIST_NON_TARGET = /法务|财务|会计|审计|税务|EHS|安全工程|质量工程|临床|医学|律师/i;
   const INTERNATIONAL = /英语|英文|English|CET|海外|国际|全球|跨境|出海|GTM|跨文化|海外客户|国际客户/i;
   const MARKET_BUSINESS = /市场营销|国际商务|工商管理|广告|新闻传播|传播学|国际贸易|经济|金融|商业分析|供应链|物流管理|文科|社科/i;
@@ -950,6 +950,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     for(const [name,langRx] of LANGS){
       if(new RegExp(`[（(][^）)]*${langRx.source}[^）)]*[）)]`,langRx.flags).test(title)) return name;
       if(new RegExp(`(?:-|—|\\s)${langRx.source}(?:-|—|\\s|$)`,langRx.flags).test(title)) return name;
+      if(new RegExp(`(?:-|—|·|\\s)${langRx.source}(?=[（(、，,]|$)`,langRx.flags).test(title)) return name;
     }
     return null;
   }
@@ -992,7 +993,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     if(advancedDegreeRequired(t,job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
     if(hardTechRequired(t)) reasons.push('存在必须的技术能力门槛');
     const titleLang=languageSpecificTitle(job.title);
-    if(titleLang&&!alternativesSatisfied(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
+    if(titleLang&&!alternativesSatisfied(String(job.title||''))&&!/优先|加分|优势|更佳|preferred|plus/i.test(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
     const lang=mandatorySmallLanguage(t);
     if(lang) reasons.push(`必须${lang}，当前英语画像不满足`);
     return {passed:reasons.length===0,reasons:[...new Set(reasons)]};
