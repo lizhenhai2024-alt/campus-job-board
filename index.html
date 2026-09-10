@@ -1236,6 +1236,9 @@ const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${DISPLAY_LEVEL(l)}`:DISPLAY_LEVE
 function companyKey(v=''){return String(v).replace(/[（(].*?[）)]/g,'').replace(/股份有限公司|集团有限公司|有限公司|集团|控股|中国/gi,'').replace(/[\s·,.，、_-]/g,'').toLowerCase();}
 function sameCompany(a,b){const x=companyKey(a),y=companyKey(b);return Boolean(x&&y&&(x===y||x.includes(y)||y.includes(x)));}
 function riskFor(company){return S.riskProfiles.find(p=>sameCompany(p.company,company)||(p.aliases||[]).some(a=>sameCompany(a,company)))||null}
+const COMPANY_META_SOURCES=[{exportName:'companyMeta',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-meta.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-meta.js']}];
+async function loadCompanyMeta(){for(const source of COMPANY_META_SOURCES){let blobUrl='';try{const raw=await fetchText(source.urls[0]);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);const rows=mod[source.exportName];return rows&&typeof rows==='object'?rows:{}}catch(e){console.warn('[company-meta]',e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}return{}}
+function companyMetaFor(company){const m=S.companyMeta||{};if(!company)return null;if(m[company])return m[company];const k=companyKey(company);if(!k)return null;const hit=Object.keys(m).find(key=>{const kk=companyKey(key);return kk===k||(kk.includes(k)||k.includes(kk));});return hit?m[hit]:null;}
 function typeLabel(type){return({layoff:'裁员/优化',restructuring:'组织重组/人员调整',intern_conversion:'实习转正/留用风险',offer_change:'校招毁约/缩招',work_intensity:'长期加班/工作强度争议',compensation:'薪资倒挂/调薪争议'})[type]||'历史事件'}
 function levelLabel(level){return({A:'一手材料',B:'高可信媒体/公司回应',C:'社区经验线索',D:'未经核实传闻'})[level]||'证据待核'}
 function confidenceLabel(comp={}){return comp.confidence==='high'?'高可信·企业官方披露':comp.confidence==='medium'?'中可信·二手来源待官网复核':'未披露';}
@@ -1299,7 +1302,7 @@ function jobCard(j){
   return`<article class="row">
     <div class="cell-grade"><span class="pill ${pillCls}">${esc(pillText)}</span><span class="row-reason">${esc(reason)}</span></div>
     <div class="cell-main">
-      <div class="company">${esc(j.company||'待核公司')}</div>
+      <div class="company">${esc(j.company||'待核公司')}${(()=>{const cm=companyMetaFor(j.company);if(!cm)return'';return (cm.fullName&&cm.fullName!==j.company?`<span class="muted" style="font-weight:400;font-size:12px;margin-left:6px">${esc(cm.fullName)}</span>`:'')+(cm.scale||cm.nature?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:'');})()}</div>
       <h3 class="row-title">${esc(j.title||'待核岗位')}</h3>
       <div class="tags">
         <span class="tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${esc(j.city||'待核')}</span>
@@ -1452,7 +1455,7 @@ function modal(){if(!S.selected)return'';const j=evaluated().find(x=>x.id===S.se
   return`<div class="drawer-bg" data-close="1"><aside class="drawer">
     <header class="drawer-head">
       <button class="drawer-close" data-close="1" title="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      <div class="company">${esc(j.company||'待核公司')}</div>
+      <div class="company">${esc(j.company||'待核公司')}${(()=>{const cm=companyMetaFor(j.company);if(!cm)return'';return (cm.fullName&&cm.fullName!==j.company?`<span class="muted" style="font-weight:400;font-size:12px;margin-left:6px">${esc(cm.fullName)}</span>`:'')+(cm.scale||cm.nature?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:'');})()}</div>
       <h2>${esc(j.title||'待核岗位')}</h2>
       <div class="drawer-kpis">
         <span><b>${esc(recLabel(v.level))}</b> 最终推荐</span>
@@ -1486,8 +1489,8 @@ async function loadRiskSet(source){
 }
 async function loadRiskProfiles(){const groups=await Promise.all(RISK_SOURCES.map(loadRiskSet));return groups.flat()}
 async function load(){
-  const [{jobs,meta,mode},riskProfiles]=await Promise.all([loadJobsAndMeta(),loadRiskProfiles()]);
-  S.jobs=jobs;S.meta=meta;S.mode=mode;S.riskProfiles=riskProfiles;
+  const [{jobs,meta,mode},riskProfiles,companyMeta]=await Promise.all([loadJobsAndMeta(),loadRiskProfiles(),loadCompanyMeta()]);
+  S.jobs=jobs;S.meta=meta;S.mode=mode;S.riskProfiles=riskProfiles;S.companyMeta=companyMeta||{};
   S.updated=meta.updatedAt||jobs[0]?.discoveredAt||'';
   render();
   if(S.sync.secret) pullRemote();
