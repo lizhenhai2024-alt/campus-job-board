@@ -1447,7 +1447,7 @@ function riskEventRow(event){
 function modal(){if(!S.selected)return'';const j=evaluated().find(x=>x.id===S.selected);if(!j)return'';const v=j._evaluation,p=v.fit.parts,r=v.reasoning;
   const comp=j.compensation||{},events=riskEvents(riskFor(j.company));
   const partRows=[['职责',p.responsibility,30,r.responsibility],['专业语言',p.majorLanguage,20,r.major],['真实经历',p.experience,25,r.experience],['方向价值',p.careerValue,15,r.career],['可补足能力',p.learnability,10,r.learnability]].map(([l,s,m,t])=>`<div class="part"><div class="part-head"><span>${l}</span><b>${s}<i> /${m}</i></b></div><div class="bar"><i style="width:${Math.min(100,s/m*100)}%"></i></div><p class="muted">${esc(t)}</p></div>`).join('');
-  return`<div class="drawer-bg" data-close="1"><aside class="drawer" onclick="event.stopPropagation()">
+  return`<div class="drawer-bg" data-close="1"><aside class="drawer">
     <header class="drawer-head">
       <button class="drawer-close" data-close="1" title="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <div class="company">${esc(j.company||'待核公司')}</div>
@@ -1547,7 +1547,11 @@ app.addEventListener('compositionend',ev=>{if(ev.target.id==='q'){composing=fals
 app.addEventListener('click',ev=>{
   const tab=ev.target.closest('[data-tab]')?.dataset.tab;if(tab){S.tab=tab;S.selected=null;render();return}
   const detail=ev.target.closest('[data-detail]')?.dataset.detail;if(detail){S.selected=detail;render();return}
-  if(ev.target.closest('[data-close]')){S.selected=null;render();return}
+  if(S.selected){
+    if(ev.target.closest('.drawer-close')){S.selected=null;render();return}
+    if(ev.target.classList?.contains('drawer-bg')){S.selected=null;render();return}
+    if(ev.target.closest('.drawer'))return;
+  }
   if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部'};render();return}
   if(ev.target.id==='more'){S.limit+=40;render();return}
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
