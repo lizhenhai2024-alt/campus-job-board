@@ -134,6 +134,7 @@ a{color:inherit}
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);
   padding:4px 11px;border-radius:8px;
 }
+.dir-count{margin-left:7px;font-size:11px;font-weight:750;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
 /* 统计带 */
 .stats{
   margin-top:26px;display:grid;grid-template-columns:repeat(6,1fr);
@@ -1335,7 +1336,17 @@ function jobsPage(){
   const all=evaluated(), normal=normalJobs(), list=filtered();
   const dirs=['全部',...uniq(normal.map(x=>x._evaluation.direction))],cities=['全部',...uniq(normal.map(x=>x.city))];
   const ss=normal.filter(x=>['S++','S'].includes(x._evaluation.level)).length,a=normal.filter(x=>x._evaluation.level==='A').length,partial=normal.filter(x=>x._evaluation.dataQuality.status==='PARTIAL').length,invalid=all.filter(x=>x._evaluation.gate.passed&&x._evaluation.dataQuality.status==='INVALID').length;
-  const dirChips=['GTM·市场策略','PMO','跨境电商运营','外贸海外业务','HR·HRBP','国际物流·供应链管培'].map(d=>`<span class="dir-chip">${esc(d)}</span>`).join('');
+  const targetDirs=[
+    {label:'GTM·市场策略',key:'GTM·市场策略'},
+    {label:'PMO',key:'PMO·项目管理'},
+    {label:'跨境电商运营',key:'跨境电商运营'},
+    {label:'外贸海外业务',key:'外贸·海外业务'},
+    {label:'HR·HRBP',key:'HR·HRBP'},
+    {label:'国际物流·供应链管培',key:'国际物流·供应链管培'},
+  ];
+  const dirCount={};
+  normal.forEach(j=>{const d=j._evaluation.direction;dirCount[d]=(dirCount[d]||0)+1;});
+  const dirChips=targetDirs.map(d=>`<span class="dir-chip">${esc(d.label)}<span class="dir-count">${dirCount[d.key]||0}</span></span>`).join('');
   return`<div class="wrap">
   <section class="hero"><div class="hero-in">
     <div class="hero-grid">
