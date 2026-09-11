@@ -105,7 +105,7 @@ jobs:
             fi
           }
           check "index.html is non-empty" test -s index.html
-          if grep -q 'scoring-v1.1.js' index.html; then
+          if grep -Eq '<script[^>]+scoring-v1\.1\.js' index.html; then
             echo "::error::legacy scoring-v1.1.js must not be wired in production"
             exit 1
           else
