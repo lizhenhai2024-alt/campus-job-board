@@ -732,24 +732,34 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     if(LOW_VALUE.test(title)) base=Math.min(base,10);
     if(SPECIALIST_NON_TARGET.test(title)) base=Math.min(base,10);
     if(TECH_TITLE.test(title)) base=Math.min(base,5);
+    const jd=[job.jobDescription,job.jobRequirements].filter(Boolean).join(' ');
+    if(dir==='GTM·市场策略' && (/市场工程师|产品市场工程师/.test(title) || /将.{0,8}技术语言|软硬件产品|与产品研发团队/.test(jd+' '+t))) base=Math.min(base,26);
     return Math.max(0,Math.min(30,base));
   }
 
   function englishMajorCompatible(text=''){
-    return /英语专业|英语类|外语类|外语专业|外国语言文学|语言类|翻译类|英语、|英语\/|英语或/.test(String(text||''));
+    const t=String(text||'');
+    return /英语专业|英语类(?:专业)?|英语相关专业|外语类|外语专业|外国语言文学|语言类|翻译类/.test(t)
+      || /英语[、\/][^。\n]{0,40}专业/.test(t)
+      || /英语或.{0,12}专业/.test(t);
   }
 
   function majorLanguageScore(job){
     const t=sourceText(job), ev=evidence(job).join(' ');
+    const jd=[job.jobDescription,job.jobRequirements].filter(Boolean).join(' ');
+    const blob=t+' '+ev+' '+jd;
     let score=12;
-    if(/专业不限|不限专业/.test(t)) score=19;
-    else if(englishMajorCompatible(t) || englishMajorCompatible(ev)) score=20;
-    else if(MARKET_BUSINESS.test(ev||t)) score=16;
-    if(STEM.test(ev) && !MARKET_BUSINESS.test(ev) && !englishMajorCompatible(t) && !englishMajorCompatible(ev)) score=8;
-    if(/理工.*优先|工科.*优先|技术背景优先|计算机.*优先/.test(t) && !englishMajorCompatible(t) && !englishMajorCompatible(ev)) score=Math.min(score,10);
-    if(INTERNATIONAL.test(t)) score=Math.min(20,score+2);
-    if(/英语.*工作语言|英文.*工作语言|英文沟通|英语沟通|海外客户|国际客户/.test(t)) score=Math.min(20,score+1);
-    if(/小语种.*优先|日语.*优先|西语.*优先|德语.*优先|法语.*优先|韩语.*优先/.test(t)) score=Math.max(8,score-1);
+    if(/专业不限|不限专业/.test(blob)) score=17;
+    else if(englishMajorCompatible(t) || englishMajorCompatible(ev) || englishMajorCompatible(jd)) score=20;
+    else if(MARKET_BUSINESS.test(ev||t||jd)) score=16;
+    const englishOk=englishMajorCompatible(t)||englishMajorCompatible(ev)||englishMajorCompatible(jd);
+    if(STEM.test(ev+' '+jd) && !MARKET_BUSINESS.test(ev+' '+jd) && !englishOk) score=8;
+    if(/理工.*优先|工科.*优先|技术背景优先|计算机.*优先/.test(blob) && !englishOk && !MARKET_BUSINESS.test(blob)) score=Math.min(score,10);
+    if(/理工科.{0,40}复合|复合背景|理工.{0,10}与商科|商科复合/.test(blob) && !englishOk) score=Math.min(score,16);
+    if(INTERNATIONAL.test(blob)) score=Math.min(20,score+2);
+    if(/英语.*工作语言|英文.*工作语言|英文沟通|英语沟通|海外客户|国际客户/.test(blob)) score=Math.min(20,score+1);
+    if(/第二外语.{0,16}重要加分|(西语|葡语|西班牙语|葡萄牙语).{0,12}重要加分/.test(blob)) score=Math.max(8,score-2);
+    else if(/小语种.*优先|日语.*优先|西语.*优先|德语.*优先|法语.*优先|韩语.*优先/.test(blob)) score=Math.max(8,score-1);
     if(SPECIALIST_NON_TARGET.test(String(job.title||''))) score=Math.min(score,8);
     return Math.max(0,Math.min(20,score));
   }
@@ -839,7 +849,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     if(!gateResult.passed) return '不符合硬条件';
     if(q.status==='INVALID') return '数据待修复';
     if(fit>=92 && q.score>=8 && parts.responsibility>=27 && parts.majorLanguage>=16 && parts.experience>=21 && exp.strongDirect) return 'S++';
-    if(fit>=85 && q.score>=7 && parts.responsibility>=25 && parts.majorLanguage>=12 && parts.experience>=15) return 'S';
+    if(fit>=85 && q.score>=7 && parts.responsibility>=25 && parts.majorLanguage>=16 && parts.experience>=18 && exp.strongDirect) return 'S';
     if(fit>=75) return 'A';
     if(fit>=65) return 'B';
     if(fit>=50) return 'C';
@@ -1013,7 +1023,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     if(base.dataQuality.status==='INVALID') return '数据待修复';
     const p=base.fit.parts,e=base.experienceEvidence;
     if(base.fit.score>=92&&base.dataQuality.score>=8&&p.responsibility>=27&&p.majorLanguage>=16&&p.experience>=21&&e.strongDirect)return'S++';
-    if(base.fit.score>=85&&base.dataQuality.score>=7&&p.responsibility>=25&&p.majorLanguage>=12&&p.experience>=15)return'S';
+    if(base.fit.score>=85&&base.dataQuality.score>=7&&p.responsibility>=25&&p.majorLanguage>=16&&p.experience>=18&&e.strongDirect)return'S';
     if(base.fit.score>=75)return'A';
     if(base.fit.score>=65)return'B';
     if(base.fit.score>=50)return'C';
