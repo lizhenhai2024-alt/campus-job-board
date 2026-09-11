@@ -216,6 +216,11 @@ a{color:inherit}
 .legend{display:flex;gap:6px;align-items:center;margin-left:6px;flex-wrap:wrap}
 .quick-note{font-size:11.5px;color:var(--faint);margin-left:auto}
 .quick-note b{color:var(--muted)}
+.all-jobs{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;user-select:none;margin-left:4px}
+.all-jobs input{accent-color:var(--acc);width:14px;height:14px}
+.hidden-more{border:1px dashed var(--line-strong);background:#F7FAFD;color:var(--acc);font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;cursor:pointer}
+.hidden-more:hover{border-color:var(--acc);background:#EEF6FF}
+.cap-hit{font-size:11.5px;font-weight:700;color:#B45309;background:#FEF3C7;border:1px solid #F5D58A;padding:3px 9px;border-radius:7px;text-align:center}
 
 /* ---------- 等级徽章 ---------- */
 .pill{
@@ -1263,7 +1268,7 @@ const DISPLAY_LEVEL=l=>l==='S++'?'S':l;
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
-const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:''},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:40,sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
+const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:''},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:40,showAllCompanyJobs:false,sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
 const app=document.getElementById('app');
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uniq=a=>[...new Set(a.filter(Boolean))];
@@ -1274,6 +1279,29 @@ const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${DISPLAY_LEVEL(l)}`:DISPLAY_LEVE
 /* ---- 公司风险情报（与原站一致） ---- */
 function companyKey(v=''){return String(v).replace(/[（(].*?[）)]/g,'').replace(/股份有限公司|集团有限公司|有限公司|集团|控股|中国/gi,'').replace(/[\s·,.，、_-]/g,'').toLowerCase();}
 function sameCompany(a,b){const x=companyKey(a),y=companyKey(b);return Boolean(x&&y&&(x===y||x.includes(y)||y.includes(x)));}
+const COMPANY_JOB_CAP=3;
+function applyCountByCompany(){
+  const m={};
+  for(const j of S.jobs){
+    if(!S.status[j.id]) continue;
+    const k=companyKey(j.company)||String(j.company||'');
+    if(!k) continue;
+    m[k]=(m[k]||0)+1;
+  }
+  return m;
+}
+function collapseByCompany(list){
+  if(S.showAllCompanyJobs || S.filter.company) return {visible:list, hidden:0, extra:{}};
+  const seen={}, extra={};
+  const visible=[];
+  for(const j of list){
+    const k=companyKey(j.company)||String(j.company||'?');
+    seen[k]=(seen[k]||0)+1;
+    if(seen[k]<=COMPANY_JOB_CAP) visible.push(j);
+    else extra[k]=(extra[k]||0)+1;
+  }
+  return {visible, hidden:list.length-visible.length, extra};
+}
 function riskFor(company){return S.riskProfiles.find(p=>sameCompany(p.company,company)||(p.aliases||[]).some(a=>sameCompany(a,company)))||null}
 const COMPANY_META_SOURCES=[{exportName:'companyMeta',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-meta.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-meta.js']}];
 async function loadCompanyMeta(){for(const source of COMPANY_META_SOURCES){let blobUrl='';try{const raw=await fetchText(source.urls[0]);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);const rows=mod[source.exportName];return rows&&typeof rows==='object'?rows:{}}catch(e){console.warn('[company-meta]',e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}return{}}
@@ -1325,7 +1353,7 @@ function qualityTag(q){return q.status==='VALID'?`<span class="tag ok">信息 ${
 function shell(body){return`<div class="page">${nav()}${body}${modal()}</div>`}
 
 /* ---- 岗位行 ---- */
-function jobCard(j){
+function jobCard(j, extraCount=0, applyUsed=0){
   const v=j._evaluation, risk=v.risk.deduction;
   const masterOnly=!v.gate.passed&&(v.gate.reasons||[]).some(r=>/硕士|研究生/.test(r));
   const reason=masterOnly?'硕士及以上专属岗位，本科画像不满足硬门槛，仅供参考':(v.level==='S++'?'强直接经历 + 高职责匹配':v.level==='S'?'核心方向高度匹配':v.level==='A'?'整体适配，值得重点投':v.level==='B'?'相邻机会，可选择性投':v.level==='C'?'探索机会，优先级较低':v.level==='D'?'投入产出比较低':v.level);
@@ -1337,10 +1365,11 @@ function jobCard(j){
   const internRisk=events.filter(e=>e.type==='intern_conversion').length;
   const fit=v.dataQuality.status!=='INVALID'?`${v.fit.score}/100`:'—';
   const stage=S.status[j.id];
-  const applyControl=stage?`<span class="applied">✓ ${esc(stage)}</span>`:`<button class="btn ghost" data-quick-apply="${esc(j.id)}">＋ 加入已投递</button>`;
+  const applyControl=stage?`<span class="applied">✓ ${esc(stage)}</span>`:applyUsed>=COMPANY_JOB_CAP?`<span class="cap-hit" title="每家公司最多投 3 个岗位">已达 3 岗上限</span>`:`<button class="btn ghost" data-quick-apply="${esc(j.id)}">＋ 加入已投递</button>`;
   const priCls=v.priorityScore>=85?'hi':v.priorityScore>=75?'mid':'';
   const cm=companyMetaFor(j.company);
   const companyName=cm&&cm.fullName?cm.fullName:(j.company||'待核公司');
+  const extraChip=extraCount?`<button class="hidden-more" data-company="${esc(companyKey(j.company))}" data-company-label="${esc(companyName)}" title="查看该公司其余岗位">还有 ${extraCount} 个岗位</button>`:'';
   return`<article class="row">
     <div class="cell-grade"><span class="pill ${pillCls}">${esc(pillText)}</span><span class="row-reason">${esc(reason)}</span></div>
     <div class="cell-main">
@@ -1356,6 +1385,7 @@ function jobCard(j){
         ${(v.gate.reasons||[]).map(r=>`<span class="tag bad" title="硬门槛未通过">${esc(r)}</span>`).join('')}${(v.risk.items||[]).map(r=>`<span class="tag warn" title="${esc(r.label)}">${esc(r.label)} -${r.value}</span>`).join('')}
         ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
         ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
+        ${extraChip}
       </div>
     </div>
     <div class="cell-fit">
@@ -1380,7 +1410,17 @@ function quickFilters(){
   return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button>`
 }
 function jobsPage(){
-  const all=evaluated(), normal=normalJobs(), list=filtered();
+  const all=evaluated(), normal=normalJobs(), raw=filtered();
+  const folded=collapseByCompany(raw);
+  const applyCounts=applyCountByCompany();
+  const lastIdx={};
+  folded.visible.forEach((j,i)=>{ lastIdx[companyKey(j.company)||j.company]=i; });
+  const page=folded.visible.slice(0,S.limit);
+  const cards=page.map((j,i)=>{
+    const k=companyKey(j.company)||j.company;
+    const extra=lastIdx[k]===i?(folded.extra[k]||0):0;
+    return jobCard(j, extra, applyCounts[k]||0);
+  }).join('');
   const dirs=['全部',...uniq(normal.map(x=>x._evaluation.direction))],cities=['全部',...uniq(normal.map(x=>x.city))];
   const ss=normal.filter(x=>['S++','S'].includes(x._evaluation.level)).length,a=normal.filter(x=>x._evaluation.level==='A').length,partial=normal.filter(x=>x._evaluation.dataQuality.status==='PARTIAL').length,invalid=all.filter(x=>x._evaluation.gate.passed&&x._evaluation.dataQuality.status==='INVALID').length;
   const targetDirs=[
@@ -1422,13 +1462,14 @@ function jobsPage(){
     </div>
     <div class="quick-row">
       ${quickFilters()}
+      <label class="all-jobs"><input type="checkbox" id="show-all-jobs" ${S.showAllCompanyJobs?'checked':''}>显示每家全部岗位</label>
       <div class="legend"><span class="pill s">S 核心优先</span><span class="pill a">A 重点投</span><span class="pill b">B 可尝试</span><span class="pill c">C / D 低优先</span></div>
       <span class="quick-note">${S.filter.degree==='硕士'?'硕士及以上岗位池 · 当前本科画像仅供参考':'仅显示<b>本科可投</b>岗位；硕士/博士及其他硬门槛岗位默认排除'}</span>
     </div>
   </div>
-  <div class="summary"><b>共 ${list.length} 个岗位</b>${S.filter.company?`<button class="btn ghost" id="clear-company" style="margin-left:10px;padding:2px 10px;font-size:12px">公司：${esc(S.filter.companyLabel)} ×</button>`:''}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'按最终推荐等级 → 候选人适配 → 投递优先分排序'}</span></div>
-  <div class="list">${list.slice(0,S.limit).map(jobCard).join('')||'<div class="empty">没有符合当前筛选条件的岗位</div>'}</div>
-  ${list.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多</button></p>':''}
+  <div class="summary"><b>共 ${raw.length} 个岗位</b>${folded.hidden?`<span class="muted">展示 ${folded.visible.length} · 每家最多 3 个最匹配，另隐藏 ${folded.hidden}</span>`:''}${S.filter.company?`<button class="btn ghost" id="clear-company" style="margin-left:10px;padding:2px 10px;font-size:12px">公司：${esc(S.filter.companyLabel)} ×</button>`:''}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':S.filter.company?'该公司全部可投岗位':'每家公司最多投 3 个岗位 · 按最终推荐等级 → 候选人适配 → 投递优先分排序'}</span></div>
+  <div class="list">${cards||'<div class="empty">没有符合当前筛选条件的岗位</div>'}</div>
+  ${folded.visible.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多</button></p>':''}
   ${dataNotes()}
   </div>`
 }
@@ -1441,6 +1482,7 @@ function dataNotes(){return`<details class="notes"><summary>评价说明 · V1.2
     <div class="note-item"><b>风险</b> 单独扣分：长期驻外-15、高频出差-8、强销售KPI-10、高压-5等。</div>
     <div class="note-item">二手来源不降低候选人适配度，只降低信息可信度；投递前必须回企业官网核验。</div>
     <div class="note-item full"><b>V1.2 推荐层</b>：适配等级与最终推荐等级分离；卡片等级表示"最终推荐"。最终推荐按风险后的优先分调整，PARTIAL 岗位推荐上限为 B，明确海外工作地点按长期海外风险 -15 处理；服务海外市场但工作地点在国内不会触发该项。</div>
+    <div class="note-item full"><b>投递配额</b>：每家公司最多投 3 个岗位。主列表默认每家只展示 3 个最匹配岗，可勾选「显示每家全部岗位」或点公司名查看其余岗位。</div>
     <div class="note-item full"><b>V1.3 情报层</b>：岗位层展示月薪/年薪、来源与可信度；公司风险按 A 一手材料、B 高可信媒体、C 社区线索、D 未核实传闻分级。CampusShame、牛客、脉脉等社区内容默认只作核验线索，不参与 S/A/B，也不把匿名单帖当事实。</div>
   </div>
   <div class="note-foot">岗位池：AI_Job 岗位发现库（公司官方源优先 + 重点高校就业网 + 牛客公开职位 + 官网核验）。${S.mode==='snapshot'?'当前为内置快照数据。':'当前为实时拉取数据。'}</div>
@@ -1448,10 +1490,13 @@ function dataNotes(){return`<details class="notes"><summary>评价说明 · V1.2
 
 /* ---- 我的投递 ---- */
 function syncPanel(){return`<div class="sync-card"><div><b>云同步</b><div class="muted">${syncStatusText()}</div></div><div class="actions"><input id="sync-secret" type="password" placeholder="同步密码（在 Vercel 项目里设置）" value="${S.sync.secret?esc(S.sync.secret):''}"><button class="btn soft" id="sync-save">${S.sync.secret?'更新密码':'启用同步'}</button>${S.sync.secret?'<button class="btn ghost" id="sync-now">立即同步</button>':''}</div></div>`}
-function pipelinePage(){const all=evaluated(),selected=all.filter(j=>S.status[j.id]);return`<div class="wrap">
-  <div class="page-title"><h1>我的投递</h1><p>在这里维护每个岗位的投递阶段；启用云同步后可在多台设备间同步。</p></div>
+function pipelinePage(){const all=evaluated(),selected=all.filter(j=>S.status[j.id]);
+  const over=Object.entries(applyCountByCompany()).filter(([,n])=>n>COMPANY_JOB_CAP);
+  return`<div class="wrap">
+  <div class="page-title"><h1>我的投递</h1><p>每家公司最多投 3 个岗位。超过上限的公司会标出来，请先移出再补更匹配的岗。</p></div>
   ${syncPanel()}
-  <div class="toolbar"><div class="actions"><button class="btn ghost" id="export-json">导出 JSON</button><button class="btn ghost" id="export-csv">导出 CSV</button><button class="btn ghost" id="import-json">导入 JSON</button><input id="import-file" type="file" accept="application/json" class="hidden" style="display:none"></div><span class="muted">当前记录 ${selected.length} 个岗位</span></div>
+  <div class="toolbar"><div class="actions"><button class="btn ghost" id="export-json">导出 JSON</button><button class="btn ghost" id="export-csv">导出 CSV</button><button class="btn ghost" id="import-json">导入 JSON</button><input id="import-file" type="file" accept="application/json" class="hidden" style="display:none"></div><span class="muted">当前记录 ${selected.length} 个岗位 · 每家最多 3 个</span></div>
+  ${over.length?`<p class="muted" style="margin:0 0 12px">有 ${over.length} 家公司已超过 3 岗上限，请移出适配更低的岗位。</p>`:''}
   <div class="pipeline">${STAGES.map(stage=>{const arr=selected.filter(j=>S.status[j.id]===stage);return`<div class="lane"><h3>${stage}<em>${arr.length}</em></h3><div class="lane-body">${arr.map(j=>`<div class="mini"><b data-detail="${esc(j.id)}">${esc(j.title)}</b><small>${esc(j.company)} · <span class="pill ${levelClass(j._evaluation.level)}">${esc(recLabel(j._evaluation.level))}</span></small><select class="status" data-status="${esc(j.id)}"><option value="">移出跟踪</option>${STAGES.map(x=>`<option ${S.status[j.id]===x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('')||'<span class="none">暂无</span>'}</div></div>`}).join('')}</div>
   ${dataNotes()}</div>`}
 function bars(rows,max){const m=max||Math.max(1,...rows.map(x=>x[1]));return rows.map(([n,v,c])=>`<div class="bar-row"><span>${esc(n)}</span><div class="barbg"><div class="barfill ${c||''}" style="width:${Math.min(100,v/m*100)}%"></div></div><b>${v}</b></div>`).join('')}
@@ -1659,7 +1704,15 @@ app.addEventListener('click',ev=>{
   if(ev.target.id==='more'){S.limit+=40;render();return}
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
-  const quickApply=ev.target.closest('[data-quick-apply]')?.dataset.quickApply;if(quickApply){S.status[quickApply]='已投递';save();render();return}
+  const quickApply=ev.target.closest('[data-quick-apply]')?.dataset.quickApply;if(quickApply){
+    const job=S.jobs.find(j=>j.id===quickApply);
+    const k=job?companyKey(job.company):'';
+    if(job && !S.status[quickApply] && (applyCountByCompany()[k]||0)>=COMPANY_JOB_CAP){
+      alert('每家公司最多投 3 个岗位。请先移出一个，或只保留最匹配的三个。');
+      return;
+    }
+    S.status[quickApply]='已投递';save();render();return;
+  }
   if(ev.target.id==='export-json'){download('campus-job-board-applications.json',JSON.stringify({status:S.status,offerScores:S.offerScores,exportedAt:new Date().toISOString()},null,2));return}
   if(ev.target.id==='export-csv'){const rows=[['岗位ID','公司','岗位','状态','等级','适配度','优先分','信息质量'],...evaluated().filter(j=>S.status[j.id]).map(j=>[j.id,j.company,j.title,S.status[j.id],DISPLAY_LEVEL(j._evaluation.level),j._evaluation.fit.score,j._evaluation.priorityScore,j._evaluation.dataQuality.status])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');download('campus-job-board-applications.csv',csv,'text/csv;charset=utf-8');return}
   if(ev.target.id==='import-json'){document.getElementById('import-file')?.click();return}
@@ -1673,9 +1726,23 @@ app.addEventListener('input',ev=>{
 });
 app.addEventListener('change',ev=>{
   if(['level','direction','city','source','quality','degree'].includes(ev.target.id)){S.filter[ev.target.id]=ev.target.value;render();return}
+  if(ev.target.id==='show-all-jobs'){S.showAllCompanyJobs=ev.target.checked;S.limit=40;render();return}
   const offerId=ev.target.dataset.offer,field=ev.target.dataset.field;
   if(offerId&&field){S.offerScores[offerId]=S.offerScores[offerId]||{growth:7,pay:7,city:7,pace:7,note:''};S.offerScores[offerId][field]=field==='note'?ev.target.value:Number(ev.target.value);save();render();return}
-  const id=ev.target.dataset.status;if(id!==undefined){if(ev.target.value)S.status[id]=ev.target.value;else delete S.status[id];save();render();return}
+  const id=ev.target.dataset.status;if(id!==undefined){
+    if(ev.target.value){
+      const job=S.jobs.find(j=>j.id===id);
+      const already=Boolean(S.status[id]);
+      const k=job?companyKey(job.company):'';
+      if(job && !already && (applyCountByCompany()[k]||0)>=COMPANY_JOB_CAP){
+        alert('每家公司最多投 3 个岗位。请先移出一个，或只保留最匹配的三个。');
+        ev.target.value='';
+        return;
+      }
+      S.status[id]=ev.target.value;
+    } else delete S.status[id];
+    save();render();return;
+  }
   if(ev.target.id==='import-file'&&ev.target.files?.[0]){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);S.status=data.status||{};S.offerScores=data.offerScores||{};save();render()}catch{alert('JSON 文件格式不正确')}};reader.readAsText(ev.target.files[0])}
 });
 render();load();
