@@ -28,25 +28,26 @@
 
   const TITLE_DIRS = [
     ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培|AI-?HR|HR培训生/i],
+    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析|商务管理|商务运营|合规运营/i],
     ['国际物流·供应链管培', /国际物流|物流.*管培|物流商务|物流运营|供应链|采购管理|供应链管培/i],
     ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
-    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销|市场策划|市场宣传/i],
+    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销|市场策划|市场宣传|市场未来星/i],
     ['PMO·项目管理', /\bPMO\b|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
-    ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营|品类运营/i],
+    ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营|品类运营|商品运营|中台运营|运营专员/i],
     ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
-    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场/i],
-    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析/i]
+    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场|内容创作者|创作者营销|内容营销/i],
+    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析|商务管理|商务运营|合规运营/i]
   ];
 
   const DIRS = [
-    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销|市场策划|市场宣传/i],
+    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销|市场策划|市场宣传|市场未来星/i],
     ['PMO·项目管理', /PMO|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
     ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
     ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
     ['国际物流·供应链管培', /国际物流|物流运营|供应链|采购管理|供应链管培|物流.*管培|物流商务/i],
-    ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营|品类运营/i],
-    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场/i],
-    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析/i],
+    ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营|品类运营|商品运营|中台运营|运营专员/i],
+    ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场|内容创作者|创作者营销|内容营销/i],
+    ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析|商务管理|商务运营|合规运营/i],
     ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培|AI-?HR|HR培训生/i],
     ['其他', /.*/i]
   ];
@@ -86,10 +87,17 @@
     const family=[...arr(job.roleFamily)].join(' ');
     for(const [name,rx] of DIRS){ if(name!=='其他' && rx.test(family)) return name; }
     const jd=String(job.jobDescription||'');
-    for(const [name,rx] of DIRS){ if(rx.test(jd)) return name; }
+    for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(jd)) return name; }
     const desc=String(job.description||'').replace(/识别关键词[:：][^。；]*/g,'');
-    for(const [name,rx] of DIRS){ if(rx.test(desc)) return name; }
+    for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(desc)) return name; }
     return '其他';
+  }
+
+  function stemHeavyPmo(job){
+    const title=String(job.title||'');
+    const blob=[job.jobRequirements, ...evidence(job)].filter(Boolean).join(' ');
+    return /硬件项目|制造项目|CMT|技术项目管理|零部件|底盘项目/.test(title)
+      || (/车辆工程|机械工程|工业设计|电子信息|自动化|硬件开发/.test(blob) && /项目/.test(title));
   }
 
   function pmoHasEnglishSignal(job){
@@ -197,6 +205,8 @@
     if(TECH_TITLE.test(title)) base=Math.min(base,5);
     const jd=[job.jobDescription,job.jobRequirements].filter(Boolean).join(' ');
     if(dir==='GTM·市场策略' && (/市场工程师|产品市场工程师/.test(title) || /将.{0,8}技术语言|软硬件产品|与产品研发团队/.test(jd+' '+t))) base=Math.min(base,26);
+    if(dir==='PMO·项目管理' && !pmoHasEnglishSignal(job)) base=Math.min(base,20);
+    if(dir==='PMO·项目管理' && stemHeavyPmo(job)) base=Math.min(base, pmoHasEnglishSignal(job)?24:16);
     return Math.max(0,Math.min(30,base));
   }
 
@@ -224,6 +234,7 @@
     if(/第二外语.{0,16}重要加分|(西语|葡语|西班牙语|葡萄牙语).{0,12}重要加分/.test(blob)) score=Math.max(8,score-2);
     else if(/小语种.*优先|日语.*优先|西语.*优先|德语.*优先|法语.*优先|韩语.*优先/.test(blob)) score=Math.max(8,score-1);
     if(SPECIALIST_NON_TARGET.test(String(job.title||''))) score=Math.min(score,8);
+    if(stemHeavyPmo(job) && !englishOk) score=Math.min(score,10);
     return Math.max(0,Math.min(20,score));
   }
 
@@ -281,6 +292,8 @@
     const t=sourceText(job);
     if(LOW_VALUE.test(String(job.title||'')) || /纯销售|销售跟单|行政文员/.test(t)) score=Math.min(score,4);
     if(SPECIALIST_NON_TARGET.test(String(job.title||''))) score=Math.min(score,4);
+    if(dir==='PMO·项目管理' && !pmoHasEnglishSignal(job)) score=Math.min(score,9);
+    if(dir==='PMO·项目管理' && stemHeavyPmo(job)) score=Math.min(score, pmoHasEnglishSignal(job)?12:7);
     return score;
   }
 
