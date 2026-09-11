@@ -5,8 +5,11 @@ const S=globalThis.CampusScoring;
 const path=process.argv[2]||'AI_Job/src/data/live-jobs.js';
 const raw=fs.readFileSync(path,'utf8');
 function parseJobs(raw){
-  const a=raw.indexOf('export const liveJobs ='),s=raw.indexOf('[',a),m=raw.indexOf('export const discoveryMeta',s);
-  const seg=raw.slice(s,m<0?raw.length:m),end=seg.lastIndexOf('];');
+  const a=raw.search(/export\s+const\s+liveJobs\s*=/);
+  const s=raw.indexOf('[', a);
+  const m=raw.search(/export\s+const\s+discoveryMeta/);
+  const seg=raw.slice(s, m<0?raw.length:m);
+  const end=seg.lastIndexOf(']');
   if(a<0||s<0||end<0) throw new Error('cannot parse liveJobs');
   return JSON.parse(seg.slice(0,end+1));
 }
