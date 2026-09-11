@@ -30,7 +30,7 @@
 |---|---|
 | `index.html` | 看板页面（KPI 卡片、筛选、岗位列表、流程管线、图表、Offer 管理） |
 | `scoring.js` | 评分引擎（原 `scoring-v1.1.js` + 语言 / 校准 / 质量三层 patch 合并，逻辑未变） |
-| `app.js` | 应用逻辑 + UI + 情报层渲染（原 `app-v1.1.js` + `ui-v1.2-patch.js` + `intelligence-v1.3-patch.js` 合并重写，岗位薪资、公司历史风险、来源分级说明都在这一个文件里） |
+| `yingzhuan-jobs.js` | 英专专项拆岗（绿联、倍思、TP-Link、网易游戏、联合利华、韶音、大华、科沃斯、大疆、有道）。实时岗位池没有这些公司时，看板会合并进来；不改 V1.2 `scoring.js` |
 | `api/state.js` | 云同步后端（Vercel Serverless Function + Vercel Marketplace 的 Upstash Redis） |
 | `audit-intelligence-v1.3.cjs` | S-A-B 情报覆盖审计（开发期诊断脚本，已改引用 `scoring.js`） |
 | `calibrate-v1.1.js` / `calibrate-v1.2.js` | 推荐等级校准（开发期诊断脚本，保留供历史对照，已改引用 `scoring.js`） |

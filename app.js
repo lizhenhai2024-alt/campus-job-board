@@ -80,9 +80,40 @@ function groupCompanies(list){
   groups.sort((a,b)=>E.compare(a.top,b.top));
   return groups;
 }
+function mergeYingzhuan(jobs){
+  const extra=window.YINGZHUAN_JOBS||[];
+  if(!extra.length) return jobs||[];
+  const seen=new Set((jobs||[]).map(j=>(companyKey(j.company)||'')+'|'+(String(j.title||'').replace(/\s+/g,''))));
+  const add=extra.filter(j=>{
+    const k=(companyKey(j.company)||'')+'|'+(String(j.title||'').replace(/\s+/g,''));
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return add.concat(jobs||[]);
+}
+function watchFor(job, company){
+  if(job&&job.watch) return job.watch;
+  const cm=companyMetaFor(company||(job&&job.company));
+  return (cm&&cm.watch)||'';
+}
 function riskFor(company){return S.riskProfiles.find(p=>sameCompany(p.company,company)||(p.aliases||[]).some(a=>sameCompany(a,company)))||null}
 const COMPANY_META_SOURCES=[{exportName:'companyMeta',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-meta.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-meta.js']}];
-async function loadCompanyMeta(){for(const source of COMPANY_META_SOURCES){let blobUrl='';try{const raw=await fetchText(source.urls[0]);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);const rows=mod[source.exportName];return rows&&typeof rows==='object'?rows:{}}catch(e){console.warn('[company-meta]',e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}return{}}
+async function loadCompanyMeta(){
+  const extra=window.YINGZHUAN_META||{};
+  for(const source of COMPANY_META_SOURCES){
+    let blobUrl='';
+    try{
+      const raw=await fetchText(source.urls[0]);
+      blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));
+      const mod=await import(blobUrl);
+      const rows=mod[source.exportName];
+      return Object.assign({}, rows&&typeof rows==='object'?rows:{}, extra);
+    }catch(e){console.warn('[company-meta]',e)}
+    finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}
+  }
+  return extra;
+}
 function companyMetaFor(company){const m=S.companyMeta||{};if(!company)return null;if(m[company])return m[company];const k=companyKey(company);if(!k)return null;const hit=Object.keys(m).find(key=>{const kk=companyKey(key);return kk===k||(kk.includes(k)||k.includes(kk));});return hit?m[hit]:null;}
 function typeLabel(type){return({layoff:'裁员/优化',restructuring:'组织重组/人员调整',intern_conversion:'实习转正/留用风险',offer_change:'校招毁约/缩招',work_intensity:'长期加班/工作强度争议',compensation:'薪资倒挂/调薪争议'})[type]||'历史事件'}
 function levelLabel(level){return({A:'一手材料',B:'高可信媒体/公司回应',C:'社区经验线索',D:'未经核实传闻'})[level]||'证据待核'}
@@ -163,6 +194,7 @@ function jobCard(j, extraCount=0, applyUsed=0){
         ${(v.gate.reasons||[]).map(r=>`<span class="tag bad" title="硬门槛未通过">${esc(r)}</span>`).join('')}${(v.risk.items||[]).map(r=>`<span class="tag warn" title="${esc(r.label)}">${esc(r.label)} -${r.value}</span>`).join('')}
         ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
         ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
+        ${watchFor(j)?`<span class="tag bad" title="${esc(watchFor(j))}">要注意</span>`:''}
         ${extraChip}
       </div>
     </div>
@@ -195,6 +227,7 @@ function companyJobRow(j, applyUsed=0){
     <div class="co-job-main">
       <button class="co-job-title" data-detail="${esc(j.id)}" title="${esc(j.title||'待核岗位')}">${esc(j.title||'待核岗位')}</button>
       <div class="co-job-sub">${esc(j.city||'待核')} · ${esc(v.direction)} · ${esc(j.deadline||'待核')}</div>
+      ${watchFor(j)?`<div class="co-job-watch">要注意 ${esc(watchFor(j))}</div>`:''}
     </div>
     <div class="co-job-pri"><b class="${priCls}">${esc(v.priorityScore)}</b><span>优先分</span></div>
     <div class="co-job-actions">
@@ -233,6 +266,7 @@ function companyCard(g, index, applyUsed=0){
           ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
           ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
         </div>
+        ${watchFor(null, g.name)?`<div class="co-watch">要注意 ${esc(watchFor(null, g.name))}</div>`:''}
       </div>
     </header>
     <div class="co-label">${g.recs.length>=3?"三个推荐岗位":"推荐岗位"}</div>
@@ -459,6 +493,7 @@ function modal(){if(!S.selected)return'';const j=evaluated().find(x=>x.id===S.se
     </header>
     <div class="drawer-body">
       <section><h3>五维适配</h3>${partRows}</section>
+      ${watchFor(j)?`<section><h3>要注意</h3><div class="note" style="background:var(--bad-bg);color:var(--bad);border:0">${esc(watchFor(j))}</div></section>`:''}
       <section><h3>岗位JD</h3>${jobDetailSection(j)}</section>
       <section><h3>薪资情报</h3><div class="kv">${detailBox('月薪',j.monthlySalary||comp.monthlyDisplay)}${detailBox('年薪',j.annualSalary||comp.annualDisplay)}${detailBox('原始薪资',comp.raw||j.salary)}${detailBox('薪资来源',comp.sourceLabel)}${detailBox('薪资可信度',confidenceLabel(comp))}${detailBox('薪资证据',comp.evidence)}</div><p class="note">月薪/年薪只使用来源页或JD明确披露数字；未写薪数时仅按12薪估算，并显式标记。不擅自加入年终奖、股票、补贴或绩效奖金。</p></section>
       <section><h3>公司往年风险事件 / 实习留用线索</h3>${riskSourceGuide()}${events.length?events.slice(0,5).map(riskEventRow).join(''):'<div class="note" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px">暂无满足"时间 + 来源 + 可追溯链接 + 证据等级"要求的已录入事件；这不等于"无风险"，仍需核验具体团队和年份。</div>'}<p class="note">历史事件不等于当前状态；A/B级可作为高可信风险情报，C级社区经验只用于面试反问/核验，D级传闻默认隐藏。公司历史风险不参与本看板 S/A/B 或 Candidate Fit 计算。</p></section>
@@ -474,9 +509,9 @@ function render(){const body=S.tab==='jobs'?jobsPage():S.tab==='pipeline'?pipeli
 function parseModule(raw){const a=raw.search(/export\s+const\s+liveJobs\s*=/),s=raw.indexOf('[',a),m=raw.search(/export\s+const\s+discoveryMeta/),segment=raw.slice(s,m<0?raw.length:m),end=segment.lastIndexOf(']');if(a<0||s<0||end<0)throw Error('岗位池格式异常');const jobs=JSON.parse(segment.slice(0,end+1));let meta={};if(m>=0){const ms=raw.indexOf('{',m),me=raw.lastIndexOf('}');if(ms>0&&me>ms)try{meta=JSON.parse(raw.slice(ms,me+1))}catch{}}return{jobs,meta}}
 async function fetchText(url){const c=new AbortController(),timer=setTimeout(()=>c.abort(),9000);try{const res=await fetch(url,{cache:'no-store',signal:c.signal});if(!res.ok)throw Error(String(res.status));return await res.text();}finally{clearTimeout(timer)}}
 async function loadJobsAndMeta(){
-  for(const url of DATA_URLS){try{const {jobs,meta}=parseModule(await fetchText(url));if(!jobs.length)throw Error('empty');return{jobs,meta,mode:'live'}}catch(err){console.warn('[board data]',err)}}
-  if(EMBEDDED_JOBS.length) return{jobs:EMBEDDED_JOBS,meta:EMBEDDED_META,mode:'snapshot'};
-  return{jobs:fb,meta:{updatedAt:'',source:'内置示例'},mode:'fallback'};
+  for(const url of DATA_URLS){try{const {jobs,meta}=parseModule(await fetchText(url));if(!jobs.length)throw Error('empty');return{jobs:mergeYingzhuan(jobs),meta,mode:'live'}}catch(err){console.warn('[board data]',err)}}
+  if(EMBEDDED_JOBS.length) return{jobs:mergeYingzhuan(EMBEDDED_JOBS),meta:EMBEDDED_META,mode:'snapshot'};
+  return{jobs:mergeYingzhuan(fb),meta:{updatedAt:'',source:'内置示例'},mode:'fallback'};
 }
 async function loadRiskSet(source){
   for(const url of source.urls){let blobUrl='';try{const raw=await fetchText(url);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);const rows=mod[source.exportName];return Array.isArray(rows)?rows:[]}catch(e){console.warn(`[risk ${source.exportName}]`,e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}
