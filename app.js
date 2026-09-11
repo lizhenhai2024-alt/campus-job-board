@@ -29,7 +29,7 @@ const DISPLAY_LEVEL=l=>l==='S++'?'S':l;
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
-const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:20,showAllCompanyJobs:false,viewMode:(localStorage.getItem('campus-job-board:view-mode')==='job'?'job':'company'),sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
+const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:20,showAllCompanyJobs:false,viewMode:(localStorage.getItem('campus-job-board:view-mode')==='job'?'job':'company'),list:{bucket:'全部',q:'',mtp:false},sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
 const app=document.getElementById('app');
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uniq=a=>[...new Set(a.filter(Boolean))];
@@ -175,7 +175,7 @@ function filtered(){
 
 /* ---- 共享组件 ---- */
 function updateBox(){return`<div class="updatechip"><span class="dot ${S.mode==='live'?'':'warn'}"></span><span>${S.mode==='live'?'数据已更新':S.mode==='loading'?'正在读取岗位池':S.mode==='snapshot'?'快照数据':'回退样例'}</span><small>调研更新 ${S.updated?new Date(S.updated).toLocaleString('zh-CN',{hour12:false}):'—'}</small><small class="ver">评价规则 V1.2</small></div>`}
-function nav(){const count=Object.keys(S.status).length;return`<header class="topbar"><div class="topbar-in"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="brand-t">校招机会看板<small>2027届 · 英语专业</small></span></div><nav class="nav">${[['jobs','机会看板'],['pipeline',`我的投递${count?` <em>${count}</em>`:''}`],['stats','统计分析'],['offers','Offer 对比']].map(([k,n])=>`<button data-tab="${k}" class="${S.tab===k?'active':''}">${n}</button>`).join('')}</nav>${updateBox()}</div></header>`}
+function nav(){const count=Object.keys(S.status).length;return`<header class="topbar"><div class="topbar-in"><div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="brand-t">校招机会看板<small>2027届 · 英语专业</small></span></div><nav class="nav">${[['jobs','机会看板'],['list','投递清单'],['pipeline',`我的投递${count?` <em>${count}</em>`:''}`],['stats','统计分析'],['offers','Offer 对比']].map(([k,n])=>`<button data-tab="${k}" class="${S.tab===k?'active':''}">${n}</button>`).join('')}</nav>${updateBox()}</div></header>`}
 function statBoxes(items){return`<div class="stats">${items.map(([v,l,c])=>`<div class="stat ${c||''}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}</div>`}
 function qualityTag(q){return q.status==='VALID'?`<span class="tag ok">信息 ${q.score}/10 · VALID</span>`:q.status==='PARTIAL'?`<span class="tag warn">信息 ${q.score}/10 · 待核</span>`:`<span class="tag bad">信息 ${q.score}/10 · 待修复</span>`}
 function shell(body){return`<div class="page">${nav()}${body}${modal()}</div>`}
@@ -387,12 +387,87 @@ function jobsPage(){
       <span class="quick-note">${S.filter.degree==='硕士'?'硕士及以上岗位池 · 当前本科画像仅供参考':'仅显示<b>本科可投</b>岗位；硕士/博士及其他硬门槛岗位默认排除'}</span>
     </div>
   </div>
+  <button type="button" class="sl-banner" data-tab="list">收窄投递清单 · 可投 ${(window.SHORTLIST_META&&window.SHORTLIST_META.apply)||67} 条<span>冲刺逐份定制 · 待归类先别投</span></button>
   ${summary}
   ${listHtml}
   ${moreHtml}
   ${dataNotes()}
   </div>`
 }
+
+function shortlistItems(){return Array.isArray(window.SHORTLIST_ITEMS)?window.SHORTLIST_ITEMS:[]}
+function listPage(){
+  const items=shortlistItems();
+  const f=S.list||{bucket:'全部',q:'',mtp:false};
+  const buckets=window.SHORTLIST_BUCKETS||{};
+  const meta=window.SHORTLIST_META||{};
+  const counts={sprint:0,core:0,safety:0,pending:0};
+  items.forEach(i=>{if(counts[i.bucket]!=null)counts[i.bucket]++;});
+  const applyN=(counts.sprint+counts.core+counts.safety)||meta.apply||0;
+  const q=(f.q||'').trim().toLowerCase();
+  const rows=items.filter(i=>{
+    if(f.bucket!=='全部'&&i.bucket!==f.bucket) return false;
+    if(f.mtp&&i.channel!=='管培生') return false;
+    if(q){const hay=`${i.company} ${i.title} ${i.city} ${i.track}`.toLowerCase(); if(!hay.includes(q)) return false;}
+    return true;
+  });
+  const mtpN=items.filter(i=>i.bucket!=='pending'&&i.channel==='管培生').length;
+  const chip=(id,label,n)=>`<button class="chip ${f.bucket===id?'active':''}" data-list-bucket="${id}">${label}${n!=null?` ${n}`:''}</button>`;
+  const bucketLabel=id=>(buckets[id]&&buckets[id].label)||({sprint:'冲刺',core:'主力',safety:'保底',pending:'待归类'}[id]||id);
+  const how=f.bucket!=='全部'&&buckets[f.bucket]?`<p class="board-section-note">${esc(buckets[f.bucket].how)}</p>`:'';
+  const prospectTag=p=>p==='avoid'?'<span class="sl-tag avoid">避开</span>':p==='watch'?'<span class="sl-tag watch">再看</span>':'';
+  const rowHtml=rows.map((it,i)=>{
+    const avoid=it.prospect==='avoid';
+    const note=[it.city,it.track,it.channel==='管培生'?'管培生':'',it.note].filter(Boolean).join(' · ');
+    const cta=avoid?`<span class="muted">不投</span>`:`<a class="btn primary" target="_blank" rel="noopener" href="${esc(it.url)}">去投递</a>`;
+    return `<li class="sl-row ${avoid?'is-avoid':''}">
+      <div class="sl-idx">${i+1}</div>
+      <div class="sl-main">
+        <div class="sl-title">${esc(it.title)}</div>
+        <div class="sl-meta">${esc(it.company)} · ${esc(note)}</div>
+        ${it.why?`<div class="sl-why">${esc(it.why)}</div>`:''}
+      </div>
+      <div class="sl-side">
+        <span class="sl-tag ${esc(it.bucket)}">${esc(bucketLabel(it.bucket))}</span>
+        ${prospectTag(it.prospect)}
+        ${cta}
+      </div>
+    </li>`;
+  }).join('')||'<div class="empty">没有匹配的岗位。换一个筛选。</div>';
+  return `<div class="wrap">
+    <section class="hero"><div class="hero-in">
+      <div class="hero-left">
+        <h1>2027届投递清单</h1>
+        <p class="hero-lead">从实时岗位池 ${esc(String(meta.poolSize||1698))} 条收窄到可投 <b>${applyN}</b> 条。待归类 ${counts.pending} 条不计入投递配额。英语必须是生产资料；第一份工作决定进入哪个人才池。</p>
+      </div>
+      ${statBoxes([[applyN,'可投岗位',''],[counts.sprint,'冲刺','s'],[counts.core,'主力','a'],[counts.safety,'保底',''],[counts.pending,'待归类','warn'],[mtpN,'管培生通道','']])}
+    </div></section>
+    <section class="sl-prospect">
+      <b>岗位发展前景</b>
+      <p>判断 offer 只问三句：十年后这段经历还有人买单吗；三年后猎头会拿什么机会找她；积累的是她的资产还是平台的资产。纯长期回报：出海业务线 > 职能专家 > 央国企。绑定「出海这件事」，不要绑定某个品类。</p>
+      <div class="sl-paths">
+        <div><b>出海业务线</b><span>海外市场 → 区域负责人。驻外窗口有限，客户关系要沉淀成个人资产。</span></div>
+        <div><b>职能专家线</b><span>市场 / 运营 / 项目。通用性好，天花板多停在总监。</span></div>
+        <div><b>央国企国际业务</b><span>稳定，中车有背书。积累的是平台资产，离开会贬值。</span></div>
+      </div>
+    </section>
+    <div class="console">
+      <div class="quick-row sl-filters">
+        ${chip('全部','全部',applyN+counts.pending)}
+        ${chip('sprint','冲刺',counts.sprint)}
+        ${chip('core','主力',counts.core)}
+        ${chip('safety','保底',counts.safety)}
+        ${chip('pending','待归类',counts.pending)}
+        <button class="chip ${f.mtp?'active':''}" data-list-mtp="1">只要管培生</button>
+        <div class="field field-search searchbox sl-search"><label>搜索</label><input id="list-q" value="${esc(f.q||'')}" placeholder="公司 / 岗位 / 城市" autocomplete="off"></div>
+      </div>
+      ${how}
+    </div>
+    <ol class="sl-list">${rowHtml}</ol>
+    <p class="board-section-note">fit 仅供实时看板排序，不作为本清单取舍依据。投递前请回官网确认届别、HC 与是否仍开放。教培 / 游戏 / 国内互联网已从可投清单剔除，待归类里标「避开」的不要占志愿。</p>
+  </div>`;
+}
+
 function dataNotes(){return`<details class="notes"><summary>评价说明 · V1.2<span class="chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span></summary>
   <div class="notes-grid">
     <div class="note-item"><b>AI_Job</b> 只负责发现、抓取、去重、来源核验与JD结构化；最终等级由本看板规则生成。</div>
@@ -538,7 +613,7 @@ function modal(){if(!S.selected)return'';const j=evaluated().find(x=>x.id===S.se
 }
 
 /* ---- 渲染 / 数据加载 ---- */
-function render(){const body=S.tab==='jobs'?jobsPage():S.tab==='pipeline'?pipelinePage():S.tab==='stats'?statsPage():offersPage();app.innerHTML=shell(body)}
+function render(){const body=S.tab==='jobs'?jobsPage():S.tab==='list'?listPage():S.tab==='pipeline'?pipelinePage():S.tab==='stats'?statsPage():offersPage();app.innerHTML=shell(body)}
 function parseModule(raw){const a=raw.search(/export\s+const\s+liveJobs\s*=/),s=raw.indexOf('[',a),m=raw.search(/export\s+const\s+discoveryMeta/),segment=raw.slice(s,m<0?raw.length:m),end=segment.lastIndexOf(']');if(a<0||s<0||end<0)throw Error('岗位池格式异常');const jobs=JSON.parse(segment.slice(0,end+1));let meta={};if(m>=0){const ms=raw.indexOf('{',m),me=raw.lastIndexOf('}');if(ms>0&&me>ms)try{meta=JSON.parse(raw.slice(ms,me+1))}catch{}}return{jobs,meta}}
 async function fetchText(url){const c=new AbortController(),timer=setTimeout(()=>c.abort(),9000);try{const res=await fetch(url,{cache:'no-store',signal:c.signal});if(!res.ok)throw Error(String(res.status));return await res.text();}finally{clearTimeout(timer)}}
 async function loadJobsAndMeta(){
@@ -609,8 +684,8 @@ function applySearch(el){
   const q=document.getElementById('q');
   q?.focus();q?.setSelectionRange(pos,pos);
 }
-app.addEventListener('compositionstart',ev=>{if(ev.target.id==='q')composing=true});
-app.addEventListener('compositionend',ev=>{if(ev.target.id==='q'){composing=false;applySearch(ev.target)}});
+app.addEventListener('compositionstart',ev=>{if(ev.target.id==='q'||ev.target.id==='list-q')composing=true});
+app.addEventListener('compositionend',ev=>{if(ev.target.id==='q'){composing=false;applySearch(ev.target)} if(ev.target.id==='list-q'){composing=false;S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.q=ev.target.value;render();}});
 
 app.addEventListener('click',ev=>{
   const view=ev.target.closest('[data-view]')?.dataset.view;
@@ -640,6 +715,9 @@ app.addEventListener('click',ev=>{
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
   if(ev.target.closest('[data-qyingzhuan]')){S.filter.yingzhuan=!S.filter.yingzhuan;S.limit=S.viewMode==='company'?20:40;render();return}
+  const listBucket=ev.target.closest('[data-list-bucket]')?.dataset.listBucket;
+  if(listBucket!==undefined){S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.bucket=listBucket;render();return}
+  if(ev.target.closest('[data-list-mtp]')){S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.mtp=!S.list.mtp;render();return}
   const quickApply=ev.target.closest('[data-quick-apply]')?.dataset.quickApply;if(quickApply){
     const job=S.jobs.find(j=>j.id===quickApply);
     const k=job?companyKey(job.company):'';
@@ -656,6 +734,16 @@ app.addEventListener('click',ev=>{
   if(ev.target.id==='sync-now'){pullRemote();return}
 });
 app.addEventListener('input',ev=>{
+  if(ev.target.id==='list-q'){
+    if(ev.isComposing || composing) return;
+    S.list=S.list||{bucket:'全部',q:'',mtp:false};
+    S.list.q=ev.target.value;
+    const pos=ev.target.selectionStart;
+    render();
+    const q=document.getElementById('list-q');
+    q?.focus();q?.setSelectionRange(pos,pos);
+    return;
+  }
   if(ev.target.id!=='q') return;
   if(ev.isComposing || composing) return;
   applySearch(ev.target);

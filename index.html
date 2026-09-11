@@ -648,6 +648,52 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
   .brand-t{font-size:14px}
   .drawer-kpis{flex-wrap:wrap;gap:8px}
 }
+
+.hero-lead{margin:10px 0 0;max-width:62ch;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.hero-lead b{color:var(--ink)}
+.sl-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:0 0 14px;padding:12px 16px;width:100%;
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  color:var(--ink);font-size:13.5px;font-weight:700;text-align:left;cursor:pointer;
+}
+.sl-banner:hover{border-color:#C9D6F5}
+.sl-banner span{color:var(--muted);font-weight:600;font-size:12.5px}
+.sl-prospect{
+  background:#fff;border:1px solid var(--line);border-radius:14px;
+  padding:16px 18px;margin:0 0 16px;
+}
+.sl-prospect b{display:block;font-size:14.5px;margin-bottom:6px}
+.sl-prospect > p{margin:0 0 12px;font-size:13px;line-height:1.55;color:var(--ink-2)}
+.sl-paths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sl-paths div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.sl-paths b{font-size:13px;margin-bottom:4px}
+.sl-paths span{display:block;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.sl-filters{align-items:center}
+.sl-search{min-width:220px;flex:1}
+.sl-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sl-row{
+  display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;
+  background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+}
+.sl-row.is-avoid{border-color:#F3D0D6;background:#FFF8F8}
+.sl-idx{font-variant-numeric:tabular-nums;color:var(--faint);font-weight:700;font-size:13px}
+.sl-title{font-size:14.5px;font-weight:800;color:var(--ink);line-height:1.35}
+.sl-meta{margin-top:3px;font-size:12.5px;color:var(--muted)}
+.sl-why{margin-top:6px;font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.sl-side{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:flex-end}
+.sl-tag{font-size:11.5px;font-weight:800;padding:3px 8px;border-radius:7px;background:var(--paper);color:var(--ink-2)}
+.sl-tag.sprint{background:var(--ink);color:#fff}
+.sl-tag.core{background:var(--ok-bg);color:var(--ok)}
+.sl-tag.safety{border:1px solid var(--line)}
+.sl-tag.pending{background:var(--warn-bg);color:var(--warn)}
+.sl-tag.avoid{background:#FDE8EC;color:var(--bad)}
+.sl-tag.watch{background:var(--warn-bg);color:var(--warn)}
+@media (max-width:820px){
+  .sl-paths{grid-template-columns:1fr}
+  .sl-row{grid-template-columns:28px 1fr; }
+  .sl-side{grid-column:1/-1;justify-content:flex-start}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
   html{scroll-behavior:auto}
@@ -656,6 +702,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
 </head>
 <body>
 <div id="app"></div>
+<script src="shortlist.js"></script>
 <script src="yingzhuan-jobs.js"></script>
 <script src="scoring.js"></script>
 <script src="app.js"></script>

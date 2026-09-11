@@ -31,6 +31,8 @@
 | `index.html` | 看板页面（KPI 卡片、筛选、岗位列表、流程管线、图表、Offer 管理） |
 | `scoring.js` | 评分引擎（原 `scoring-v1.1.js` + 语言 / 校准 / 质量三层 patch 合并，逻辑未变） |
 | `yingzhuan-jobs.js` | 英专专项拆岗。可投的（绿联、倍思、韶音、影石、科沃斯、携程）钉在「按公司」顶部；大疆、联合利华、有道、网易游戏、TP-Link、大华等机会不大的不置顶，仍可筛选。不改 V1.2 `scoring.js` |
+| `shortlist.js` | 收窄投递清单（冲刺/主力/保底/待归类）。网页「投递清单」页使用；待归类按长期发展前景标避开/再看，不计入可投配额。不改 `scoring.js` |
+| `docs/投递清单_2027届_收窄版.md` | 清单源文档，由 `scripts/build-shortlist.cjs` 从 AI_Job 岗位池生成 |
 | `api/state.js` | 云同步后端（Vercel Serverless Function + Vercel Marketplace 的 Upstash Redis） |
 | `audit-intelligence-v1.3.cjs` | S-A-B 情报覆盖审计（开发期诊断脚本，已改引用 `scoring.js`） |
 | `calibrate-v1.1.js` / `calibrate-v1.2.js` | 推荐等级校准（开发期诊断脚本，保留供历史对照，已改引用 `scoring.js`） |
