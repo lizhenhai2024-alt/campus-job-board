@@ -580,7 +580,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培/i],
     ['国际物流·供应链管培', /国际物流|物流.*管培|物流商务|物流运营|供应链|采购管理|供应链管培/i],
     ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
-    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销/i],
+    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销|市场策划|市场宣传/i],
     ['PMO·项目管理', /\bPMO\b|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
     ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营/i],
     ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
@@ -589,7 +589,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
   ];
 
   const DIRS = [
-    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销/i],
+    ['GTM·市场策略', /\bGTM\b|go[- ]?to[- ]?market|产品营销|产品市场|市场策略|品牌策略|全球营销|市场策划|市场宣传/i],
     ['PMO·项目管理', /PMO|项目管理|项目运营|项目推进|项目协调|项目助理|项目经理/i],
     ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
     ['外贸·海外业务', /海外业务|国际业务|国际商务|海外商务|海外市场|海外运营|国际贸易|贸易运营|出海业务/i],
@@ -635,9 +635,19 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     for(const [name,rx] of TITLE_DIRS){ if(rx.test(title)) return name; }
     const family=[...arr(job.roleFamily)].join(' ');
     for(const [name,rx] of DIRS){ if(name!=='其他' && rx.test(family)) return name; }
-    const desc=String(job.description||'');
+    const jd=String(job.jobDescription||'');
+    for(const [name,rx] of DIRS){ if(rx.test(jd)) return name; }
+    const desc=String(job.description||'').replace(/识别关键词[:：][^。；]*/g,'');
     for(const [name,rx] of DIRS){ if(rx.test(desc)) return name; }
     return '其他';
+  }
+
+  function pmoHasEnglishSignal(job){
+    const blob=[job.title, job.jobDescription, job.jobRequirements, ...evidence(job)].filter(Boolean).join(' ');
+    return /英语专业|英语类|英语相关|外语类|外语专业|商务英语|语言类|翻译类/.test(blob)
+      || /英语可作为工作语言|英文.{0,8}工作语言|英语.{0,8}工作语言/.test(blob)
+      || /英语[、\/]|[、\/]英语([类专业、\/]|$)/.test(blob)
+      || /英语|英文|English/.test(String(job.title||''));
   }
 
   function isExpired(deadline, now=new Date()){
@@ -667,7 +677,10 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     const title=String(job.title||'');
     const obviousAggregate=/多个岗位|岗位合集|职位合集|岗位集合|职位集合|多岗位|招聘岗位如下/i.test(title+' '+desc);
     const genericSecondary=job.sourceType!=='official' && /^自动发现的/.test(desc) && !arr(f.major&&f.major.evidence).length && !arr(f.responsibility&&f.responsibility.business).length;
-    if(!job.company || !job.title || !job.sourceUrl || obviousAggregate || genericSecondary) status='INVALID';
+    const bogusIdentity=/^(办公地址|工作地点|工作地址|待定|详见官网)$/.test(title.trim())
+      || /^(办公地址|工作地点|工作地址)$/.test(String(job.company||'').trim())
+      || (title.length>60 && /办公地址/.test(title));
+    if(!job.company || !job.title || !job.sourceUrl || obviousAggregate || genericSecondary || bogusIdentity) status='INVALID';
     return {score,status,reasons};
   }
 
@@ -845,12 +858,15 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     return {deduction:Math.min(35,deduction),items};
   }
 
-  function level(fit, parts, q, gateResult, exp){
+  function level(fit, parts, q, gateResult, exp, job, dir){
     if(!gateResult.passed) return '不符合硬条件';
     if(q.status==='INVALID') return '数据待修复';
     if(fit>=92 && q.score>=8 && parts.responsibility>=27 && parts.majorLanguage>=16 && parts.experience>=21 && exp.strongDirect) return 'S++';
     if(fit>=85 && q.score>=7 && parts.responsibility>=25 && parts.majorLanguage>=16 && parts.experience>=18 && exp.strongDirect) return 'S';
-    if(fit>=75) return 'A';
+    if(fit>=75){
+      if(dir==='PMO·项目管理' && job && !pmoHasEnglishSignal(job)) return 'B';
+      return 'A';
+    }
     if(fit>=65) return 'B';
     if(fit>=50) return 'C';
     return 'D';
@@ -907,7 +923,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     return String(b.publishedAt||'').localeCompare(String(a.publishedAt||''));
   }
 
-  const api={PROFILE,evaluate,compare,direction,dataQuality,gate,mandatorySmallLanguage,alternativeLanguageSatisfied,isExpired};
+  const api={PROFILE,evaluate,compare,direction,dataQuality,gate,mandatorySmallLanguage,alternativeLanguageSatisfied,isExpired,pmoHasEnglishSignal};
   root.CampusScoring=api;
   if(typeof module!=='undefined'&&module.exports) module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
@@ -1018,13 +1034,16 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     if(lang) reasons.push(`必须${lang}，当前英语画像不满足`);
     return {passed:reasons.length===0,reasons:[...new Set(reasons)]};
   }
-  function recalcLevel(base,g){
+  function recalcLevel(base,g,job){
     if(!g.passed) return '不符合硬条件';
     if(base.dataQuality.status==='INVALID') return '数据待修复';
     const p=base.fit.parts,e=base.experienceEvidence;
     if(base.fit.score>=92&&base.dataQuality.score>=8&&p.responsibility>=27&&p.majorLanguage>=16&&p.experience>=21&&e.strongDirect)return'S++';
     if(base.fit.score>=85&&base.dataQuality.score>=7&&p.responsibility>=25&&p.majorLanguage>=16&&p.experience>=18&&e.strongDirect)return'S';
-    if(base.fit.score>=75)return'A';
+    if(base.fit.score>=75){
+      if(base.direction==='PMO·项目管理' && job && S.pmoHasEnglishSignal && !S.pmoHasEnglishSignal(job)) return 'B';
+      return'A';
+    }
     if(base.fit.score>=65)return'B';
     if(base.fit.score>=50)return'C';
     return'D';
@@ -1032,7 +1051,7 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
   function evaluate(job,now=new Date()){
     const base=oldEvaluate(job,now),g=gate(job,now);
     base.gate=g;
-    base.level=recalcLevel(base,g);
+    base.level=recalcLevel(base,g,job);
     base.reasoning.gate=g.passed?'硬条件通过。':`硬条件不通过：${g.reasons.join('；')}`;
     return base;
   }
