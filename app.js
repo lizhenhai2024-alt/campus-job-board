@@ -41,6 +41,7 @@ const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${DISPLAY_LEVEL(l)}`:DISPLAY_LEVE
 function companyKey(v=''){return String(v).replace(/[（(].*?[）)]/g,'').replace(/股份有限公司|集团有限公司|有限公司|集团|控股|中国/gi,'').replace(/[\s·,.，、_-]/g,'').toLowerCase();}
 function sameCompany(a,b){const x=companyKey(a),y=companyKey(b);return Boolean(x&&y&&(x===y||x.includes(y)||y.includes(x)));}
 function isYingzhuanJob(j){return Boolean(j&&(j.sourceChannel==='yingzhuan'||String(j.id||'').indexOf('yingzhuan-')===0));}
+function isYingzhuanPin(j){return isYingzhuanJob(j)&&j.pin===true;}
 const COMPANY_JOB_CAP=3;
 function applyCountByCompany(){
   const m={};
@@ -81,7 +82,7 @@ function groupCompanies(list){
     const top=recs[0];
     const cm=companyMetaFor(g.name);
     const companyName=cm&&cm.fullName?cm.fullName:(g.name||'待核公司');
-    const featured=jobs.some(isYingzhuanJob);
+    const featured=jobs.some(isYingzhuanPin);
     return {...g, jobs, recs, extra:Math.max(0,jobs.length-recs.length), companyName, cm, top, featured};
   });
   groups.sort((a,b)=>{
@@ -93,7 +94,7 @@ function groupCompanies(list){
 function pinYingzhuan(list){
   if(S.filter.company||S.filter.q||S.filter.yingzhuan) return list;
   const a=[], b=[];
-  for(const j of list) (isYingzhuanJob(j)?a:b).push(j);
+  for(const j of list) (isYingzhuanPin(j)?a:b).push(j);
   return a.concat(b);
 }
 function mergeYingzhuan(jobs){
@@ -163,6 +164,7 @@ function filtered(){
     return(!q||hay.includes(q))
       &&(!f.company||sameCompany(j.company,f.company))
       &&(!f.yingzhuan||isYingzhuanJob(j))
+      &&(f.yingzhuan||f.q||f.company||!isYingzhuanJob(j)||isYingzhuanPin(j))
       &&(master||f.level==='全部'||ev.level===f.level||(f.level==='S'&&ev.level==='S++'))
       &&(f.direction==='全部'||ev.direction===f.direction)
       &&(f.city==='全部'||j.city===f.city)
@@ -327,8 +329,8 @@ function jobsPage(){
       const page=rest.slice(0,S.limit);
       const featCards=featured.map((g,i)=>companyCard(g, i, applyCounts[g.key]||0)).join('');
       const restCards=page.map((g,i)=>companyCard(g, featured.length+i, applyCounts[g.key]||0)).join('');
-      summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · 英专专项 ${featured.length} 家钉在顶部 · 每家 3 个推荐岗位</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'绿联 / 倍思 / TP-Link 等按官网口径补进；下方实时池按最终推荐等级 → 候选人适配 → 投递优先分'}</span></div>`;
-      listHtml=`<div class="board-section"><div class="board-section-h">英专专项拆岗 · 绿联 / 倍思 / TP-Link 等</div><p class="board-section-note">实时岗位池没有这批公司的 2027 届英专向拆岗，已按官网口径补进看板并钉在公司视图顶部。投递前请回官网确认届别、HC 与是否仍开放。</p><div class="company-grid">${featCards}</div></div><div class="board-section"><div class="board-section-h">实时岗位池 · 按投递优先级</div><div class="company-grid">${restCards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div></div>`;
+      summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · 可投专项 ${featured.length} 家置顶 · 机会不大的不钉在顶部</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'只置顶英专可投拆岗；大疆 / 联合利华 / 有道等仍在实时池或「英专专项」筛选里'}</span></div>`;
+      listHtml=`<div class="board-section"><div class="board-section-h">英专专项拆岗 · 可投优先</div><p class="board-section-note">只把英语是生产资料、本科英专有真实机会的公司钉在顶部。大疆、联合利华、有道、网易游戏、TP-Link、大华等通过期望低或要驻外/理工的，不置顶，仍可点「英专专项」或搜索查看。投递前请回官网确认届别、HC 与是否仍开放。</p><div class="company-grid">${featCards}</div></div><div class="board-section"><div class="board-section-h">实时岗位池 · 按投递优先级</div><div class="company-grid">${restCards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div></div>`;
       moreHtml=rest.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多公司</button></p>':'';
     }else{
       const page=groups.slice(0,S.limit);
