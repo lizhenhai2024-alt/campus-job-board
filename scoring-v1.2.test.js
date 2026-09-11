@@ -43,6 +43,32 @@ assert.ok(!japanService.risk.items.some(x=>x.label==='长期海外工作地点')
 
 assert.equal(S.foreignWorkLocation(job({title:'GTM Product Manager - Germany',city:'待核'})),true,'城市待核时标题明确Germany可推断海外工作地');
 
+const topbandPmo=S.evaluate(job({
+  company:'拓邦股份',
+  title:'项目管理工程师（英语）',
+  city:'深圳',
+  roleFamily:['项目管理'],
+  skills:['英语','项目管理'],
+  experienceKeywords:['项目','客户'],
+  preferenceTags:[],
+  riskTags:[],
+  description:'拓邦股份官方2027校招岗位；职类：研发类。性质：全职。',
+  jobDescription:'岗位职责1、负责新项目开发的统筹与管理工作2、制定项目计划、识别项目风险，处置项目过程异常，确保项目按预期推进3、对接客户并做好诉求应答，管理内外部团队岗位要求1.本科及以上学历，机械、电子类等工科专业或英语类专业优先；2.英语CET-6或商务英语中级以上，口语流利者优先；',
+  candidateFit:{major:{evidence:['1.本科及以上学历，机械、电子类等工科专业或英语类专业优先']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:[],technical:[]}}
+}),now);
+assert.equal(topbandPmo.direction,'PMO·项目管理','拓邦英语项目管理应归入PMO');
+assert.ok(topbandPmo.fit.parts.majorLanguage>=18,`工科或英语类优先不得把英语专业压到 ${topbandPmo.fit.parts.majorLanguage}/20`);
+assert.ok(topbandPmo.fit.score>=75,`拓邦英语项目管理适配分应达A档，实际 ${topbandPmo.fit.score}`);
+assert.equal(topbandPmo.level,'A','拓邦英语项目管理应对英语专业为A');
+
+const stemOnly=S.evaluate(job({
+  title:'硬件研发工程师',
+  roleFamily:['其他'],
+  description:'本科及以上学历，电子、机械等理工科专业优先，熟悉电路设计。',
+  candidateFit:{major:{evidence:['电子、机械等理工科专业优先']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:[],technical:['电路设计']}}
+}),now);
+assert.ok(stemOnly.fit.parts.majorLanguage<=10,'纯理工优先仍应压低专业语言分');
+
 const weirdDeadline=S.evaluate(job({deadline:'2029-09-02'}),now);
 assert.equal(weirdDeadline.dataQuality.status,'PARTIAL','2029异常截止日期必须降为PARTIAL');
 assert.ok(['B','C','D'].includes(weirdDeadline.level),'PARTIAL最终推荐不得高于B');
