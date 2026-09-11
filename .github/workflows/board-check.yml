@@ -105,18 +105,26 @@ jobs:
             fi
           }
           check "index.html is non-empty" test -s index.html
-          check "index loads scoring.js" grep -q 'scoring.js' index.html
-          check "index loads app.js" grep -q 'app.js' index.html
           if grep -q 'scoring-v1.1.js' index.html; then
             echo "::error::legacy scoring-v1.1.js must not be wired in production"
             exit 1
           else
             echo "PASS: legacy scoring-v1.1.js is not wired"
           fi
-          check "priority risk source is wired" grep -q 'company-risk-history-priority.js' app.js
-          check "priority risk export is consumed" grep -q 'priorityCompanyRiskHistory' app.js
-          check "risk source guide is present" grep -q 'RISK_SOURCE_GUIDE' app.js
-          check "CampusShame source guidance is present" grep -q 'CampusShame' app.js
-          check "Nowcoder source guidance is present" grep -q '牛客' app.js
-          check "Maimai source guidance is present" grep -q '脉脉' app.js
-          check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' app.js
+          if grep -q 'scoring.js' index.html && grep -q 'app.js' index.html; then
+            echo "PASS: index loads scoring.js and app.js"
+            WIRING_FILE=app.js
+          elif grep -q 'CampusScoring' index.html && grep -q 'parseModule' index.html; then
+            echo "PASS: index inlines CampusScoring and live job loader"
+            WIRING_FILE=index.html
+          else
+            echo "::error::production index must load scoring.js+app.js or inline CampusScoring"
+            exit 1
+          fi
+          check "priority risk source is wired" grep -q 'company-risk-history-priority.js' "$WIRING_FILE"
+          check "priority risk export is consumed" grep -q 'priorityCompanyRiskHistory' "$WIRING_FILE"
+          check "risk source guide is present" grep -q 'RISK_SOURCE_GUIDE' "$WIRING_FILE"
+          check "CampusShame source guidance is present" grep -q 'CampusShame' "$WIRING_FILE"
+          check "Nowcoder source guidance is present" grep -q '牛客' "$WIRING_FILE"
+          check "Maimai source guidance is present" grep -q '脉脉' "$WIRING_FILE"
+          check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' "$WIRING_FILE"
