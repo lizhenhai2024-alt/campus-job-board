@@ -548,7 +548,16 @@
     return base.level;
   }
 
-  function recommendationByPriority(base){
+  function keepEnglishGtmA(base, job){
+    if(!['GTM·市场策略','外贸·海外业务','跨境电商运营'].includes(base.direction)) return false;
+    if(!['A','S','S++'].includes(base.fitLevel)) return false;
+    if(!S.pmoHasEnglishSignal || !S.pmoHasEnglishSignal(job)) return false;
+    const items=base.risk&&Array.isArray(base.risk.items)?base.risk.items:[];
+    if(!items.length) return false;
+    return items.every(x=>/城市非目标城市|高压\/高强度/.test(String(x.label||'')));
+  }
+
+  function recommendationByPriority(base, job){
     if(!base.gate.passed) return '不符合硬条件';
     if(base.dataQuality.status==='INVALID') return '数据待修复';
 
@@ -564,6 +573,7 @@
     const fitLevel=base.fitLevel;
     if((LEVEL_RANK[candidate]||0)>(LEVEL_RANK[fitLevel]||0)) candidate=fitLevel;
     if(base.dataQuality.status==='PARTIAL' && (LEVEL_RANK[candidate]||0)>LEVEL_RANK.B) candidate='B';
+    if(keepEnglishGtmA(base, job) && (LEVEL_RANK[candidate]||0)<LEVEL_RANK.A) candidate='A';
     return candidate;
   }
 
@@ -601,7 +611,7 @@
     base.fitLevel=fitLevelFromBase(base);
     patchRisk(base,job);
     patchDataQuality(base,job);
-    base.recommendationLevel=recommendationByPriority(base);
+    base.recommendationLevel=recommendationByPriority(base,job);
     base.level=base.recommendationLevel;
     if(base.reasoning){
       base.reasoning.risk=base.risk.items.length?base.risk.items.map(x=>`${x.label} -${x.value}`).join('；'):'未识别明显偏好风险。';
