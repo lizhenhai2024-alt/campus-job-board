@@ -41,6 +41,33 @@ const japanService=S.evaluate(job({title:'Associate - Japanese Services Group',c
 assert.equal(S.foreignWorkLocation(job({title:'Associate - Japanese Services Group',city:'深圳'})),false,'Japanese Services但工作地深圳不能算海外工作地');
 assert.ok(!japanService.risk.items.some(x=>x.label==='长期海外工作地点'),'国内日本业务岗位不能扣海外工作地风险');
 
+const foshanGtm=S.evaluate(job({
+  title:'海外产品营销',
+  city:'佛山',
+  roleFamily:['产品营销'],
+  experienceKeywords:['市场','营销'],
+  preferenceTags:[],
+  riskTags:['节奏快'],
+  description:'负责海外产品营销、GTM 与市场研究。抗压能力强。',
+  jobRequirements:'市场营销、经济类、管理类、外语类等相关专业',
+  candidateFit:{major:{evidence:['市场营销、经济类、管理类、外语类等相关专业']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['海外产品营销'],technical:[]}}
+}),now);
+assert.equal(foshanGtm.direction,'GTM·市场策略','外语类海外产品营销应归GTM');
+assert.ok(foshanGtm.risk.items.some(x=>x.label==='城市非目标城市'),'佛山仍应记城市风险');
+assert.equal(foshanGtm.fitLevel,'A','适配本身应是A');
+assert.equal(foshanGtm.level,'A','外语类GTM不应因非目标城市掉出A');
+
+const overseasTrade=S.evaluate(job({
+  title:'品牌经理（海外业务）',
+  city:'阿联酋',
+  roleFamily:['海外业务'],
+  description:'负责海外品牌与市场，英语可作为工作语言。',
+  jobRequirements:'专业不限，要求英语作为工作语言',
+  candidateFit:{major:{evidence:['专业不限，要求英语作为工作语言']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['海外品牌'],technical:[]}}
+}),now);
+assert.ok(overseasTrade.risk.items.some(x=>/海外工作地点/.test(x.label)),'阿联酋应记长期海外');
+assert.ok(['B','C','D'].includes(overseasTrade.level),'真驻外外语岗仍可低于A');
+
 assert.equal(S.foreignWorkLocation(job({title:'GTM Product Manager - Germany',city:'待核'})),true,'城市待核时标题明确Germany可推断海外工作地');
 
 const topbandPmo=S.evaluate(job({
