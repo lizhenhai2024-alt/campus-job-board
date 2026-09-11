@@ -69,6 +69,31 @@ const stemOnly=S.evaluate(job({
 }),now);
 assert.ok(stemOnly.fit.parts.majorLanguage<=10,'纯理工优先仍应压低专业语言分');
 
+const keywordDump=S.evaluate(job({
+  title:'产品市场工程师',
+  city:'深圳',
+  roleFamily:['产品营销'],
+  skills:['英语','内容运营'],
+  experienceKeywords:['市场','营销'],
+  preferenceTags:[],
+  riskTags:[],
+  description:'公司官方北森校招岗位；识别关键词：英语、内容运营、市场分析、文案。',
+  jobDescription:'协助开展全球市场调研，参与新产品线上市（GTM）推广；与产品研发团队密切配合，将晦涩的技术语言转化为市场语言。',
+  jobRequirements:'本科及以上学历，硕士优先；市场营销、国际商务、传播学专业，或具备理工科（通信、电子、车辆工程等）与商科复合背景者优先；英语可作为工作语言（通过CET-6优先）；掌握第二外语（如西语、葡语等）者是重要加分项。',
+  candidateFit:{major:{evidence:['市场营销、国际商务、传播学专业，或具备理工科（通信、电子、车辆工程等）与商科复合背景者优先']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['跨文化沟通'],technical:[]}}
+}),now);
+assert.ok(keywordDump.fit.parts.majorLanguage<=18,`关键词摘要里的「英语、」不得当英语专业明列，实际 ${keywordDump.fit.parts.majorLanguage}`);
+assert.ok(keywordDump.fit.score<85,`锐明类 GTM 不应乐观打到S线，实际 ${keywordDump.fit.score}`);
+assert.ok(['A','B'].includes(keywordDump.level) && keywordDump.level!=='S',`无强直接经历的产品市场工程师不应为S，实际 ${keywordDump.level}`);
+assert.ok(keywordDump.fit.score>=70,`商科优先+英语工作语言仍应是可投档，实际 ${keywordDump.fit.score}`);
+
+const listedEnglish=S.evaluate(job({
+  title:'海外市场专员',
+  description:'本科及以上，英语、国际商务、市场营销等相关专业优先。英语可作为工作语言。',
+  candidateFit:{major:{evidence:['英语、国际商务、市场营销等相关专业优先']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['海外市场'],technical:[]}}
+}),now);
+assert.ok(listedEnglish.fit.parts.majorLanguage>=18,'「英语、国际商务、市场营销等相关专业优先」仍应高分');
+
 const weirdDeadline=S.evaluate(job({deadline:'2029-09-02'}),now);
 assert.equal(weirdDeadline.dataQuality.status,'PARTIAL','2029异常截止日期必须降为PARTIAL');
 assert.ok(['B','C','D'].includes(weirdDeadline.level),'PARTIAL最终推荐不得高于B');
