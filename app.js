@@ -188,7 +188,7 @@ function companyJobRow(j, applyUsed=0){
   const pillText=masterOnly?'硕士':recLabel(v.level);
   const pillCls=masterOnly?'m':levelClass(v.level);
   const stage=S.status[j.id];
-  const applyControl=stage?`<span class="applied">✓ ${esc(stage)}</span>`:applyUsed>=COMPANY_JOB_CAP?`<span class="cap-hit" title="每家公司最多投 3 个岗位">已达上限</span>`:`<button class="btn ghost" data-quick-apply="${esc(j.id)}">＋ 投递</button>`;
+  const applyControl=stage?`<span class="applied">✓ ${esc(stage)}</span>`:applyUsed>=COMPANY_JOB_CAP?`<span class="cap-hit" title="每家公司最多投 3 个岗位">已达 3 岗上限</span>`:`<button class="btn ghost" data-quick-apply="${esc(j.id)}">＋ 加入已投递</button>`;
   const priCls=v.priorityScore>=85?'hi':v.priorityScore>=75?'mid':'';
   return`<div class="co-job">
     <span class="pill ${pillCls}">${esc(pillText)}</span>
@@ -196,8 +196,10 @@ function companyJobRow(j, applyUsed=0){
       <button class="co-job-title" data-detail="${esc(j.id)}" title="${esc(j.title||'待核岗位')}">${esc(j.title||'待核岗位')}</button>
       <div class="co-job-sub">${esc(j.city||'待核')} · ${esc(v.direction)} · ${esc(j.deadline||'待核')}</div>
     </div>
-    <div class="co-job-side">
-      <div class="co-job-pri"><b class="${priCls}">${esc(v.priorityScore)}</b><span>优先分</span></div>
+    <div class="co-job-pri"><b class="${priCls}">${esc(v.priorityScore)}</b><span>优先分</span></div>
+    <div class="co-job-actions">
+      ${j.sourceUrl?`<a class="btn primary" target="_blank" rel="noopener" href="${esc(j.sourceUrl)}">${j.sourceType==='official'?'立即投递':'查看来源'}</a>`:''}
+      <button class="btn soft" data-detail="${esc(j.id)}">评价详情</button>
       ${applyControl}
     </div>
   </div>`

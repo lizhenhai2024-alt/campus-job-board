@@ -267,10 +267,10 @@ a{color:inherit}
   margin:12px 0 6px;display:flex;align-items:center;gap:8px;
 }
 .co-label::after{content:"";flex:1;height:1px;background:var(--line)}
-.co-jobs{display:flex;flex-direction:column;gap:4px}
+.co-jobs{display:flex;flex-direction:column;gap:8px}
 .co-job{
   display:grid;grid-template-columns:auto minmax(0,1fr) auto;
-  gap:10px;align-items:center;padding:8px 8px;border-radius:10px;
+  gap:6px 10px;align-items:center;padding:10px 8px 10px;border-radius:10px;
   border:1px solid transparent;
 }
 .co-job:hover{background:#F8FAFF;border-color:var(--line)}
@@ -283,12 +283,20 @@ a{color:inherit}
 }
 .co-job-title:hover{color:var(--acc)}
 .co-job-sub{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.co-job-side{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
-.co-job-pri{text-align:right;line-height:1}
+.co-job-pri{text-align:right;line-height:1;flex:none}
 .co-job-pri b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
 .co-job-pri span{display:block;font-size:10px;color:var(--faint);font-weight:600;margin-top:2px}
-.co-job-side .btn{height:28px;padding:0 10px;font-size:12px}
-.co-job-side .applied,.co-job-side .cap-hit{font-size:11px;padding:2px 7px}
+.co-job-actions{
+  grid-column:1/-1;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;
+}
+.co-job-actions .btn{
+  height:32px;padding:0 10px;font-size:12px;flex:1 1 112px;
+}
+.co-job-actions .applied,.co-job-actions .cap-hit{
+  font-size:11.5px;padding:0 9px;flex:1 1 112px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
 .co-foot{
   display:flex;justify-content:space-between;align-items:center;gap:8px;
   margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
@@ -297,7 +305,8 @@ a{color:inherit}
 @media (max-width:920px){
   .company-grid{grid-template-columns:1fr}
   .co-job{grid-template-columns:auto minmax(0,1fr);gap:8px}
-  .co-job-side{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}
+  .co-job-pri{grid-column:1/-1;display:flex;align-items:baseline;gap:6px;text-align:left}
+  .co-job-pri span{margin-top:0}
 }
 
 /* ---------- 等级徽章 ---------- */
