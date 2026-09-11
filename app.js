@@ -29,7 +29,7 @@ const DISPLAY_LEVEL=l=>l==='S++'?'S':l;
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
-const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:''},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:20,showAllCompanyJobs:false,viewMode:(localStorage.getItem('campus-job-board:view-mode')==='job'?'job':'company'),sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
+const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:20,showAllCompanyJobs:false,viewMode:(localStorage.getItem('campus-job-board:view-mode')==='job'?'job':'company'),sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
 const app=document.getElementById('app');
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uniq=a=>[...new Set(a.filter(Boolean))];
@@ -40,6 +40,7 @@ const recLabel=l=>NORMAL_LEVELS.has(l)?`推荐 ${DISPLAY_LEVEL(l)}`:DISPLAY_LEVE
 /* ---- 公司风险情报（与原站一致） ---- */
 function companyKey(v=''){return String(v).replace(/[（(].*?[）)]/g,'').replace(/股份有限公司|集团有限公司|有限公司|集团|控股|中国/gi,'').replace(/[\s·,.，、_-]/g,'').toLowerCase();}
 function sameCompany(a,b){const x=companyKey(a),y=companyKey(b);return Boolean(x&&y&&(x===y||x.includes(y)||y.includes(x)));}
+function isYingzhuanJob(j){return Boolean(j&&(j.sourceChannel==='yingzhuan'||String(j.id||'').indexOf('yingzhuan-')===0));}
 const COMPANY_JOB_CAP=3;
 function applyCountByCompany(){
   const m={};
@@ -71,14 +72,29 @@ function groupCompanies(list){
     map.get(k).jobs.push(j);
   }
   const groups=[...map.values()].map(g=>{
-    const recs=g.jobs.slice(0,COMPANY_JOB_CAP);
+    const jobs=[...g.jobs].sort((a,b)=>{
+      const ay=isYingzhuanJob(a)?1:0, by=isYingzhuanJob(b)?1:0;
+      if(ay!==by) return by-ay;
+      return E.compare(a,b);
+    });
+    const recs=jobs.slice(0,COMPANY_JOB_CAP);
     const top=recs[0];
     const cm=companyMetaFor(g.name);
     const companyName=cm&&cm.fullName?cm.fullName:(g.name||'待核公司');
-    return {...g, recs, extra:Math.max(0,g.jobs.length-recs.length), companyName, cm, top};
+    const featured=jobs.some(isYingzhuanJob);
+    return {...g, jobs, recs, extra:Math.max(0,jobs.length-recs.length), companyName, cm, top, featured};
   });
-  groups.sort((a,b)=>E.compare(a.top,b.top));
+  groups.sort((a,b)=>{
+    if(Boolean(a.featured)!==Boolean(b.featured)) return a.featured?-1:1;
+    return E.compare(a.top,b.top);
+  });
   return groups;
+}
+function pinYingzhuan(list){
+  if(S.filter.company||S.filter.q||S.filter.yingzhuan) return list;
+  const a=[], b=[];
+  for(const j of list) (isYingzhuanJob(j)?a:b).push(j);
+  return a.concat(b);
 }
 function mergeYingzhuan(jobs){
   const extra=window.YINGZHUAN_JOBS||[];
@@ -146,6 +162,7 @@ function filtered(){
     const src=j.sourceType==='official'?'官方':'二手';
     return(!q||hay.includes(q))
       &&(!f.company||sameCompany(j.company,f.company))
+      &&(!f.yingzhuan||isYingzhuanJob(j))
       &&(master||f.level==='全部'||ev.level===f.level||(f.level==='S'&&ev.level==='S++'))
       &&(f.direction==='全部'||ev.direction===f.direction)
       &&(f.city==='全部'||j.city===f.city)
@@ -195,6 +212,7 @@ function jobCard(j, extraCount=0, applyUsed=0){
         ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
         ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
         ${watchFor(j)?`<span class="tag bad" title="${esc(watchFor(j))}">要注意</span>`:''}
+        ${isYingzhuanJob(j)?`<span class="tag ok">英专专项</span>`:''}
         ${extraChip}
       </div>
     </div>
@@ -250,12 +268,13 @@ function companyCard(g, index, applyUsed=0){
     return `<span class="pill ${masterOnly?'m':levelClass(ev.level)}">${esc(masterOnly?'硕士':DISPLAY_LEVEL(ev.level))}</span>`;
   }).join('');
   const extraChip=g.extra?`<button class="hidden-more" data-company="${esc(g.key)}" data-company-label="${esc(g.companyName)}" title="按岗位查看该公司其余岗位">还有 ${g.extra} 个岗位</button>`:`<span class="muted">已展示全部 ${g.jobs.length} 个岗位</span>`;
-  return`<article class="co-card">
+  return`<article class="co-card${g.featured?' featured':''}">
     <header class="co-head">
       <span class="co-rank">${String(index+1).padStart(2,'0')}</span>
       <div class="co-id">
         <div class="co-name-row">
           <button class="company-name" data-company="${esc(g.key)}" data-company-label="${esc(g.companyName)}" title="只看该公司">${esc(g.companyName)}</button>
+          ${g.featured?`<span class="tag ok">英专专项</span>`:''}
           ${cm&&(cm.scale||cm.nature)?`<span class="tag">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}
         </div>
         <div class="co-meta">
@@ -277,7 +296,7 @@ function companyCard(g, index, applyUsed=0){
 
 /* ---- 机会看板页 ---- */
 function quickFilters(){
-  return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button>`
+  return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button><button class="chip yingzhuan ${S.filter.yingzhuan?'active':''}" data-qyingzhuan="1">英专专项</button>`
 }
 function jobsPage(){
   const all=evaluated(), normal=normalJobs(), raw=filtered();
@@ -301,13 +320,25 @@ function jobsPage(){
   let summary='', listHtml='', moreHtml='';
   if(S.viewMode==='company'){
     const groups=groupCompanies(raw);
-    const page=groups.slice(0,S.limit);
-    const cards=page.map((g,i)=>companyCard(g, i, applyCounts[g.key]||0)).join('');
-    summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · 每家 3 个推荐岗位 · 按投递优先级排序</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'公司顺序 = 该公司最匹配岗的最终推荐等级 → 候选人适配 → 投递优先分'}</span></div>`;
-    listHtml=`<div class="company-grid">${cards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div>`;
-    moreHtml=groups.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多公司</button></p>':'';
+    const featured=groups.filter(g=>g.featured);
+    const rest=groups.filter(g=>!g.featured);
+    const showSplit=!S.filter.company && !S.filter.yingzhuan && !S.filter.q && featured.length;
+    if(showSplit){
+      const page=rest.slice(0,S.limit);
+      const featCards=featured.map((g,i)=>companyCard(g, i, applyCounts[g.key]||0)).join('');
+      const restCards=page.map((g,i)=>companyCard(g, featured.length+i, applyCounts[g.key]||0)).join('');
+      summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · 英专专项 ${featured.length} 家钉在顶部 · 每家 3 个推荐岗位</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'绿联 / 倍思 / TP-Link 等按官网口径补进；下方实时池按最终推荐等级 → 候选人适配 → 投递优先分'}</span></div>`;
+      listHtml=`<div class="board-section"><div class="board-section-h">英专专项拆岗 · 绿联 / 倍思 / TP-Link 等</div><p class="board-section-note">实时岗位池没有这批公司的 2027 届英专向拆岗，已按官网口径补进看板并钉在公司视图顶部。投递前请回官网确认届别、HC 与是否仍开放。</p><div class="company-grid">${featCards}</div></div><div class="board-section"><div class="board-section-h">实时岗位池 · 按投递优先级</div><div class="company-grid">${restCards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div></div>`;
+      moreHtml=rest.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多公司</button></p>':'';
+    }else{
+      const page=groups.slice(0,S.limit);
+      const cards=page.map((g,i)=>companyCard(g, i, applyCounts[g.key]||0)).join('');
+      summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · 每家 3 个推荐岗位 · 按投递优先级排序</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'公司顺序 = 该公司最匹配岗的最终推荐等级 → 候选人适配 → 投递优先分'}</span></div>`;
+      listHtml=`<div class="company-grid">${cards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div>`;
+      moreHtml=groups.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多公司</button></p>':'';
+    }
   }else{
-    const folded=collapseByCompany(raw);
+    const folded=collapseByCompany(pinYingzhuan(raw));
     const lastIdx={};
     folded.visible.forEach((j,i)=>{ lastIdx[companyKey(j.company)||j.company]=i; });
     const page=folded.visible.slice(0,S.limit);
@@ -589,7 +620,7 @@ app.addEventListener('click',ev=>{
     if(ev.target.classList?.contains('drawer-bg')){S.selected=null;render();return}
     if(ev.target.closest('.drawer'))return;
   }
-  if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:''};render();return}
+  if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false};render();return}
   if(ev.target.id==='clear-company'){S.filter.company='';S.filter.companyLabel='';S.showAllCompanyJobs=false;render();return}
   const moreBtn=ev.target.closest('.hidden-more');
   if(moreBtn){
@@ -606,6 +637,7 @@ app.addEventListener('click',ev=>{
   if(ev.target.id==='more'){S.limit+=S.viewMode==='company'?16:40;render();return}
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
+  if(ev.target.closest('[data-qyingzhuan]')){S.filter.yingzhuan=!S.filter.yingzhuan;S.limit=S.viewMode==='company'?20:40;render();return}
   const quickApply=ev.target.closest('[data-quick-apply]')?.dataset.quickApply;if(quickApply){
     const job=S.jobs.find(j=>j.id===quickApply);
     const k=job?companyKey(job.company):'';

@@ -214,6 +214,7 @@ a{color:inherit}
 .chip:hover{border-color:var(--acc);color:var(--acc)}
 .chip.active{background:var(--ink);border-color:var(--ink);color:#fff}
 .chip.official.active{background:var(--acc);border-color:var(--acc);color:#fff}
+.chip.yingzhuan.active{background:var(--acc);border-color:var(--acc);color:#fff}
 .legend{display:flex;gap:6px;align-items:center;margin-left:6px;flex-wrap:wrap}
 .quick-note{font-size:11.5px;color:var(--faint);margin-left:auto}
 .quick-note b{color:var(--muted)}
@@ -247,6 +248,16 @@ a{color:inherit}
   transition:border-color .15s, box-shadow .15s;
 }
 .co-card:hover{border-color:#C9D6F5;box-shadow:0 10px 28px -20px rgba(11,27,51,.35)}
+.co-card.featured{border-color:#C9D6F5;box-shadow:0 8px 24px -18px rgba(36,86,230,.35)}
+.board-section{margin-top:22px}
+.board-section:first-child{margin-top:0}
+.board-section-h{
+  font-size:13px;font-weight:800;color:var(--ink);letter-spacing:.3px;
+  margin:0 0 6px;
+}
+.board-section-note{
+  font-size:12.5px;color:var(--muted);margin:0 0 12px;line-height:1.5;max-width:72ch;
+}
 .co-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px}
 .co-rank{
   font-size:20px;font-weight:800;color:var(--faint);letter-spacing:-.5px;
