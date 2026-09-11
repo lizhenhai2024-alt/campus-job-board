@@ -27,10 +27,11 @@ const TRAINEE = /管培|管理培训|培训生|未来星|储备|trainee|计划�
 // 纯出海企业：国内岗位也带英语场景
 const PURE_EXPORT = /拓竹科技|图拉斯|安克创新|致欧家居|傲基科技|SHEIN|正浩创新|影石|传音控股|扬腾创新|Babycare|万兴科技/;
 const FIT_FLOOR = 65;
+const PENDING = '待归类:';
 
-function parseLiveJobs(file) {
+function parseArrayLiteral(file, varName) {
   const src = fs.readFileSync(file, 'utf8');
-  const start = src.indexOf('[', src.indexOf('export const liveJobs'));
+  const start = src.indexOf('[', src.indexOf('export const ' + varName));
   let depth = 0, i = start, inStr = false, esc = false;
   for (; i < src.length; i++) {
     const c = src[i];
@@ -41,8 +42,15 @@ function parseLiveJobs(file) {
   return JSON.parse(src.slice(start, i));
 }
 
+// 公司库兜底：白名单是手工维护的，岗位池新进公司不在名单里会被静默剔除。
+// 读 AI_Job 的 company-library.js，有行业标签的标为「待归类」单独列出，人工决定是否并入白名单。
+const LIB = path.resolve(path.dirname(LIVE), 'company-library.js');
+const companyLibrary = fs.existsSync(LIB) ? parseArrayLiteral(LIB, 'companyLibrary') : [];
+
 function industryOf(company) {
   for (const [name, list] of Object.entries(INDUSTRY)) if (list.includes(company)) return name;
+  const lib = companyLibrary.find(c => c.name === company);
+  if (lib && lib.industries && lib.industries.length) return PENDING + lib.industries[0];
   return null;
 }
 
@@ -74,12 +82,13 @@ function build(jobs, S, now = new Date()) {
     if (seen.has(key)) continue;
     seen.add(key);
     per[r.company] = (per[r.company] || 0) + 1;
-    if (per[r.company] > CAP[r.industry]) continue;
-    r.tier = (r.fit >= 80 && (r.trainee || /GTM|海外市场|海外营销|产品营销|海外运营/.test(r.title))) ? '冲刺'
+    if (per[r.company] > (CAP[r.industry] || 3)) continue;
+    r.tier = r.industry.startsWith(PENDING) ? '待归类'
+           : (r.fit >= 80 && (r.trainee || /GTM|海外市场|海外营销|产品营销|海外运营/.test(r.title))) ? '冲刺'
            : r.fit >= 72 ? '主力' : '保底';
     out.push(r);
   }
-  const order = { 冲刺: 1, 主力: 2, 保底: 3 };
+  const order = { 冲刺: 1, 主力: 2, 保底: 3, 待归类: 4 };
   out.sort((a, b) => order[a.tier] - order[b.tier] || b.fit - a.fit);
   return out;
 }
@@ -91,9 +100,10 @@ function render(rows, total) {
     冲刺: '**投递方式：必须逐份定制**，每份针对JD改3–5处关键词。',
     主力: '**投递方式：模板+微调**，按「海外市场 / 跨境运营 / 国际供应链」三类各做一版简历。',
     保底: '**投递方式：直接投**，不投入定制时间。',
+    待归类: '公司不在行业白名单里，但 AI_Job 公司库有行业标签，职能与海外信号均已通过筛选。**人工判断后决定是否并入白名单**（改 `scripts/build-shortlist.cjs` 的 `INDUSTRY`）。',
   };
   let s = `# 2027届投递清单（收窄版）\n\n> 自动生成于 ${new Date().toISOString().slice(0, 10)}，由 \`scripts/build-shortlist.cjs\` 从 AI_Job 实时岗位池（${total} 条）收窄到 ${rows.length} 条。\n> 每条均已通过 V1.2 硬门槛（本科可投、2027届、无小语种/理工硬门槛、未截止）。\n> fit 仅供排序参考，不作为取舍依据。\n\n---\n\n`;
-  for (const t of ['冲刺', '主力', '保底']) {
+  for (const t of ['冲刺', '主力', '保底', '待归类']) {
     if (!g[t]) continue;
     s += `## ${t}（${g[t].length}）\n\n${note[t]}\n\n| 公司 | 岗位 | 城市 | 行业归属 | 通道 | 提示 |\n|---|---|---|---|---|---|\n`;
     g[t].forEach(r => {
@@ -105,7 +115,7 @@ function render(rows, total) {
   return s;
 }
 
-const jobs = parseLiveJobs(LIVE);
+const jobs = parseArrayLiteral(LIVE, 'liveJobs');
 global.window = global;
 require(path.resolve(__dirname, '../scoring.js'));
 const rows = build(jobs, globalThis.CampusScoring);
