@@ -68,6 +68,32 @@ const overseasTrade=S.evaluate(job({
 assert.ok(overseasTrade.risk.items.some(x=>/海外工作地点/.test(x.label)),'阿联酋应记长期海外');
 assert.ok(['B','C','D'].includes(overseasTrade.level),'真驻外外语岗仍可低于A');
 
+const opsNotPmo=S.evaluate(job({
+  title:'合规运营管培生',
+  roleFamily:['其他'],
+  jobDescription:'3. 合规项目运营与风险管控：跟进供应商合规数据。'
+}),now);
+assert.notEqual(opsNotPmo.direction,'PMO·项目管理','合规运营不得因项目运营四字打成PMO');
+
+const merch=S.evaluate(job({
+  title:'商品运营-奢品&箱包',
+  jobDescription:'主动发起相应规范梳理及优化的项目推进和落地。'
+}),now);
+assert.notEqual(merch.direction,'PMO·项目管理','商品运营不得因项目推进打成PMO');
+
+const hwPmo=S.evaluate(job({
+  title:'硬件项目经理',
+  roleFamily:['项目管理'],
+  skills:['项目管理'],
+  experienceKeywords:['项目'],
+  preferenceTags:[],
+  description:'参与硬件项目的需求分析与进度跟踪。',
+  jobRequirements:'本科及以上学历，电子/计算机等理工类优先',
+  candidateFit:{major:{evidence:['电子/计算机等理工类优先']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['项目管理'],technical:['硬件']}}
+}),now);
+assert.ok(hwPmo.fit.score<70,`工科硬件PMO分数应压低，实际 ${hwPmo.fit.score}`);
+assert.ok(['B','C','D'].includes(hwPmo.level),`工科硬件PMO不得为A，实际 ${hwPmo.level}`);
+
 assert.equal(S.foreignWorkLocation(job({title:'GTM Product Manager - Germany',city:'待核'})),true,'城市待核时标题明确Germany可推断海外工作地');
 
 const topbandPmo=S.evaluate(job({
