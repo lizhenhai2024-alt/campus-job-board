@@ -1457,11 +1457,51 @@ function offersPage(){
 }
 
 /* ---- 岗位JD详情 ---- */
+const JD_REQ_HEAD=/(岗位要求|任职要求|任职资格|申请要求|资格要求|职位要求)\s*[:：]?/;
+const JD_DUTY_HEAD=/(岗位职责|工作职责|职责描述|工作内容)\s*[:：]?/;
+function splitJdBlob(raw){
+  const text=String(raw||'').replace(/\r\n/g,'\n').replace(/<br\s*\/?>/gi,'\n').trim();
+  if(!text) return {duties:'',reqs:''};
+  let duties=text, reqs='';
+  const reqIdx=text.search(JD_REQ_HEAD);
+  if(reqIdx>=0){
+    const m=text.slice(reqIdx).match(JD_REQ_HEAD);
+    reqs=text.slice(reqIdx+(m?m[0].length:0)).trim();
+    duties=text.slice(0,reqIdx).trim();
+  }
+  duties=duties.replace(JD_DUTY_HEAD,'\n').trim();
+  reqs=reqs.replace(JD_REQ_HEAD,'\n').trim();
+  return {duties,reqs};
+}
+function jdItems(text){
+  let t=String(text||'').trim();
+  if(!t) return [];
+  t=t.replace(new RegExp(JD_DUTY_HEAD.source+'|'+JD_REQ_HEAD.source,'g'),'\n');
+  t=t.replace(/(?=(?:[1-9]\d?[、．])|(?:[1-9]\d?\.(?!\d))|(?:[1-9]\d?\))|(?:（[1-9]\d?）)|[①②③④⑤⑥⑦⑧⑨⑩])/g,'\n');
+  let lines=t.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  const out=[];
+  for(const line of lines){
+    if(/^[1-9①②③④⑤⑥⑦⑧⑨⑩]/.test(line) || line.length<20 || !/；/.test(line)){ out.push(line); continue; }
+    const parts=line.split(/；/).map(s=>s.trim()).filter(Boolean);
+    if(parts.length>=2) out.push(...parts);
+    else out.push(line);
+  }
+  return out.map(s=>s.replace(/[；;]+$/g,'').trim()).filter(Boolean);
+}
 function jobDetailSection(j){
-  const desc = j.jobDescription || j.description || '';
-  const req = j.jobRequirements || '';
-  const fmt = t => String(t||'').trim().replace(/\r\n/g,'\n').split('\n').filter(s=>s.trim()).map(s=>`<li>${esc(s.trim())}</li>`).join('');
-  const parts = [];
+  let desc=String(j.jobDescription||'').trim();
+  let req=String(j.jobRequirements||'').trim();
+  if(!req){
+    const split=splitJdBlob(desc||String(j.description||''));
+    if(split.reqs){ desc=split.duties; req=split.reqs; }
+    else if(!desc) desc=split.duties;
+  }else{
+    desc=desc.replace(JD_DUTY_HEAD,'\n').trim();
+    req=req.replace(JD_REQ_HEAD,'\n').trim();
+  }
+  if(!desc && !req) desc=String(j.description||'').trim();
+  const fmt=t=>jdItems(t).map(s=>`<li>${esc(s)}</li>`).join('');
+  const parts=[];
   if(desc) parts.push(`<div class="jd-block"><h4>岗位职责</h4><ul class="jd-list">${fmt(desc)}</ul></div>`);
   if(req) parts.push(`<div class="jd-block"><h4>任职要求</h4><ul class="jd-list">${fmt(req)}</ul></div>`);
   if(!parts.length) return '<div class="note" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px">该岗位暂无结构化JD文本，可点击下方"打开官方职位"查看原文。</div>';
