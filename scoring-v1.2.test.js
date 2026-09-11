@@ -94,6 +94,47 @@ const listedEnglish=S.evaluate(job({
 }),now);
 assert.ok(listedEnglish.fit.parts.majorLanguage>=18,'「英语、国际商务、市场营销等相关专业优先」仍应高分');
 
+const genericPmo=S.evaluate(job({
+  title:'项目管理',
+  roleFamily:['项目管理'],
+  skills:['项目管理'],
+  languages:[],
+  experienceKeywords:['项目'],
+  preferenceTags:[],
+  description:'腾讯校园招聘岗位；识别关键词：项目管理。',
+  jobDescription:'负责项目进度、跨部门协同与交付。',
+  jobRequirements:'本科及以上学历，专业不限',
+  candidateFit:{major:{evidence:['专业不限']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['项目管理'],technical:[]}}
+}),now);
+assert.equal(genericPmo.direction,'PMO·项目管理','标题项目管理应归PMO');
+assert.ok(['B','C','D'].includes(genericPmo.level),`未提英语/外语的PMO不得进A，实际 ${genericPmo.level} ${genericPmo.fit.score}`);
+
+const englishPmo=S.evaluate(job({
+  title:'项目管理工程师（英语）',
+  roleFamily:['项目管理'],
+  skills:['英语','项目管理'],
+  experienceKeywords:['项目','客户'],
+  preferenceTags:[],
+  description:'官方校招岗位',
+  jobRequirements:'本科及以上学历，机械、电子类等工科专业或英语类专业优先；英语CET-6',
+  candidateFit:{major:{evidence:['机械、电子类等工科专业或英语类专业优先']},eligibilityEvidence:['招聘对象：2027届'],responsibility:{business:['项目管理','客户'],technical:[]}}
+}),now);
+assert.ok(['A','S'].includes(englishPmo.level),`点名英语类的PMO仍应可进A，实际 ${englishPmo.level} ${englishPmo.fit.score}`);
+
+const junkTitle=S.evaluate(job({title:'办公地址',company:'办公地址',sourceType:'secondary'}),now);
+assert.equal(junkTitle.dataQuality.status,'INVALID','办公地址脏数据应INVALID');
+assert.equal(junkTitle.level,'数据待修复','脏数据不得进入主推荐');
+
+const mistagged=S.evaluate(job({
+  title:'市场策划与宣传',
+  roleFamily:['其他'],
+  skills:['项目管理'],
+  experienceKeywords:['项目','市场'],
+  description:'公司官方北森校招岗位；识别关键词：项目管理。',
+  jobDescription:'负责市场活动策划、宣传物料与品牌传播。'
+}),now);
+assert.notEqual(mistagged.direction,'PMO·项目管理','识别关键词里的项目管理不得把市场策划打成PMO');
+
 const weirdDeadline=S.evaluate(job({deadline:'2029-09-02'}),now);
 assert.equal(weirdDeadline.dataQuality.status,'PARTIAL','2029异常截止日期必须降为PARTIAL');
 assert.ok(['B','C','D'].includes(weirdDeadline.level),'PARTIAL最终推荐不得高于B');
