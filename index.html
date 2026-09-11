@@ -735,14 +735,18 @@ td input.note-input{width:130px;text-align:left;font-weight:500}
     return Math.max(0,Math.min(30,base));
   }
 
+  function englishMajorCompatible(text=''){
+    return /英语专业|英语类|外语类|外语专业|外国语言文学|语言类|翻译类|英语、|英语\/|英语或/.test(String(text||''));
+  }
+
   function majorLanguageScore(job){
     const t=sourceText(job), ev=evidence(job).join(' ');
     let score=12;
     if(/专业不限|不限专业/.test(t)) score=19;
-    else if(/英语专业|外语类|外国语言文学|语言类|翻译类/.test(t)) score=20;
+    else if(englishMajorCompatible(t) || englishMajorCompatible(ev)) score=20;
     else if(MARKET_BUSINESS.test(ev||t)) score=16;
-    if(STEM.test(ev) && !MARKET_BUSINESS.test(ev)) score=8;
-    if(/理工.*优先|技术背景优先|计算机.*优先/.test(t)) score=Math.min(score,10);
+    if(STEM.test(ev) && !MARKET_BUSINESS.test(ev) && !englishMajorCompatible(t) && !englishMajorCompatible(ev)) score=8;
+    if(/理工.*优先|工科.*优先|技术背景优先|计算机.*优先/.test(t) && !englishMajorCompatible(t) && !englishMajorCompatible(ev)) score=Math.min(score,10);
     if(INTERNATIONAL.test(t)) score=Math.min(20,score+2);
     if(/英语.*工作语言|英文.*工作语言|英文沟通|英语沟通|海外客户|国际客户/.test(t)) score=Math.min(20,score+1);
     if(/小语种.*优先|日语.*优先|西语.*优先|德语.*优先|法语.*优先|韩语.*优先/.test(t)) score=Math.max(8,score-1);
