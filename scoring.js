@@ -80,6 +80,19 @@
     ].filter(Boolean).join(' ');
   }
 
+  function gtmAsServiceObject(text){
+    // GTM 出现在"为/给/对 GTM 团队提供支持/工具/赋能"语境中——是服务对象而非岗位本身职能
+    return /(为|给|对|向|for|to)\s*GTM\b/i.test(text) && /(提供|支持|工具|赋能|服务|解决方案|provide|support|tool|enable|service|solution)/i.test(text);
+  }
+  function scanDirs(text){
+    for(const [name,rx] of DIRS){
+      if(name==='PMO·项目管理'||name==='其他') continue;
+      if(!rx.test(text)) continue;
+      if(name==='GTM·市场策略' && gtmAsServiceObject(text)) continue;
+      return name;
+    }
+    return null;
+  }
   function direction(job){
     const title=String(job.title||'');
     if(SPECIALIST_NON_TARGET.test(title)) return '其他';
@@ -87,11 +100,11 @@
     const family=[...arr(job.roleFamily)].join(' ');
     for(const [name,rx] of DIRS){ if(name!=='其他' && rx.test(family)) return name; }
     const jd=String(job.jobDescription||'');
-    for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(jd)) return name; }
+    const r1=scanDirs(jd); if(r1) return r1;
     const req=String(job.jobRequirements||'').replace(/识别关键词[:：][^。；]*/g,'');
-    for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(req)) return name; }
+    const r2=scanDirs(req); if(r2) return r2;
     const desc=String(job.description||'').replace(/识别关键词[:：][^。；]*/g,'');
-    for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(desc)) return name; }
+    const r3=scanDirs(desc); if(r3) return r3;
     return '其他';
   }
 
@@ -310,11 +323,11 @@
   }
 
   function risk(job){
-    const t=sourceText(job), items=[];
+    const t=[sourceText(job),job.jobDescription,job.jobRequirements].filter(Boolean).join(' '), items=[];
     let deduction=0;
     function add(label,value){items.push({label,value});deduction+=value;}
-    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外/.test(t)) add('长期派驻/驻外',15);
-    if(/频繁出差|高频出差|大量出差|经常出差/.test(t)) add('高频出差',8);
+    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻/.test(t)) add('长期派驻/驻外',15);
+    if(/(频繁|高频次?|大量|经常).{0,4}出差/.test(t)) add('高频出差',8);
     if(/销售KPI|销售指标|业绩指标|销售业绩/.test(t)) add('强销售KPI',10);
     if(/高压|高强度|节奏快|抗压能力强/.test(t)) add('高压/高强度',5);
     // 关键技能需补足：技能词与"优先/加分/了解/熟悉者优先"软性标记必须在同一分句内
