@@ -73,6 +73,7 @@ window.SHORTLIST_ITEMS = [
     "track": "智能硬件出海",
     "channel": "管培生",
     "url": "https://transsion.zhiye.com/campus/detail?jobAdId=270965302",
+    "note": "长期外派（东南亚/拉美/非洲）",
     "prospect": "apply"
   },
   {
