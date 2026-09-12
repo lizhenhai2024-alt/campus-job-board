@@ -389,7 +389,7 @@ function jobsPage(){
       <span class="quick-note">${S.filter.degree==='硕士'?'硕士及以上岗位池 · 当前本科画像仅供参考':'仅显示<b>本科可投</b>岗位；硕士/博士及其他硬门槛岗位默认排除'}</span>
     </div>
   </div>
-  <button type="button" class="sl-banner" data-tab="list">收窄投递清单 · 可投 ${(window.SHORTLIST_META&&window.SHORTLIST_META.apply)||67} 条<span>冲刺逐份定制 · 待归类先别投</span></button>
+  <button type="button" class="sl-banner" data-tab="list">收窄投递清单 · 可投 ${(window.SHORTLIST_META&&window.SHORTLIST_META.apply)||67} 条<span>冲刺逐份定制</span></button>
   ${summary}
   ${listHtml}
   ${moreHtml}
@@ -397,13 +397,13 @@ function jobsPage(){
   </div>`
 }
 
-function shortlistItems(){return Array.isArray(window.SHORTLIST_ITEMS)?window.SHORTLIST_ITEMS:[]}
+function shortlistItems(){return (Array.isArray(window.SHORTLIST_ITEMS)?window.SHORTLIST_ITEMS:[]).filter(i=>i.bucket!=='pending')}
 function listPage(){
   const items=shortlistItems();
   const f=S.list||{bucket:'全部',q:'',mtp:false};
   const buckets=window.SHORTLIST_BUCKETS||{};
   const meta=window.SHORTLIST_META||{};
-  const counts={sprint:0,core:0,safety:0,pending:0};
+  const counts={sprint:0,core:0,safety:0};
   items.forEach(i=>{if(counts[i.bucket]!=null)counts[i.bucket]++;});
   const applyN=(counts.sprint+counts.core+counts.safety)||meta.apply||0;
   const q=(f.q||'').trim().toLowerCase();
@@ -413,9 +413,9 @@ function listPage(){
     if(q){const hay=`${i.company} ${i.title} ${i.city} ${i.track}`.toLowerCase(); if(!hay.includes(q)) return false;}
     return true;
   });
-  const mtpN=items.filter(i=>i.bucket!=='pending'&&i.channel==='管培生').length;
+  const mtpN=items.filter(i=>i.channel==='管培生').length;
   const chip=(id,label,n)=>`<button class="chip ${f.bucket===id?'active':''}" data-list-bucket="${id}">${label}${n!=null?` ${n}`:''}</button>`;
-  const bucketLabel=id=>(buckets[id]&&buckets[id].label)||({sprint:'冲刺',core:'主力',safety:'保底',pending:'待归类'}[id]||id);
+  const bucketLabel=id=>(buckets[id]&&buckets[id].label)||({sprint:'冲刺',core:'主力',safety:'保底'}[id]||id);
   const how=f.bucket!=='全部'&&buckets[f.bucket]?`<p class="board-section-note">${esc(buckets[f.bucket].how)}</p>`:'';
   const prospectTag=p=>p==='avoid'?'<span class="sl-tag avoid">避开</span>':p==='watch'?'<span class="sl-tag watch">再看</span>':'';
   const rowHtml=rows.map((it,i)=>{
@@ -440,9 +440,9 @@ function listPage(){
     <section class="hero"><div class="hero-in">
       <div class="hero-left">
         <h1>2027届投递清单</h1>
-        <p class="hero-lead">从实时岗位池 ${esc(String(meta.poolSize||1698))} 条收窄到可投 <b>${applyN}</b> 条。待归类 ${counts.pending} 条不计入投递配额。英语必须是生产资料；第一份工作决定进入哪个人才池。</p>
+        <p class="hero-lead">从实时岗位池 ${esc(String(meta.poolSize||1698))} 条收窄到可投 <b>${applyN}</b> 条。英语必须是生产资料；第一份工作决定进入哪个人才池。</p>
       </div>
-      ${statBoxes([[applyN,'可投岗位',''],[counts.sprint,'冲刺','s'],[counts.core,'主力','a'],[counts.safety,'保底',''],[counts.pending,'待归类','warn'],[mtpN,'管培生通道','']])}
+      ${statBoxes([[applyN,'可投岗位',''],[counts.sprint,'冲刺','s'],[counts.core,'主力','a'],[counts.safety,'保底',''],[mtpN,'管培生通道','']])}
     </div></section>
     <section class="sl-prospect">
       <b>岗位发展前景</b>
@@ -455,18 +455,17 @@ function listPage(){
     </section>
     <div class="console">
       <div class="quick-row sl-filters">
-        ${chip('全部','全部',applyN+counts.pending)}
+        ${chip('全部','全部',applyN)}
         ${chip('sprint','冲刺',counts.sprint)}
         ${chip('core','主力',counts.core)}
-        ${chip('safety','保底',counts.safety)}
-        ${chip('pending','待归类',counts.pending)}
+        ${chip('safety','保底',counts.safety)}
         <button class="chip ${f.mtp?'active':''}" data-list-mtp="1">只要管培生</button>
         <div class="field field-search searchbox sl-search"><label>搜索</label><input id="list-q" value="${esc(f.q||'')}" placeholder="公司 / 岗位 / 城市" autocomplete="off"></div>
       </div>
       ${how}
     </div>
     <ol class="sl-list">${rowHtml}</ol>
-    <p class="board-section-note">fit 仅供实时看板排序，不作为本清单取舍依据。投递前请回官网确认届别、HC 与是否仍开放。教培 / 游戏 / 国内互联网已从可投清单剔除，待归类里标「避开」的不要占志愿。</p>
+    <p class="board-section-note">fit 仅供实时看板排序，不作为本清单取舍依据。投递前请回官网确认届别、HC 与是否仍开放。教培 / 游戏 / 国内互联网已从可投清单剔除。</p>
   </div>`;
 }
 
