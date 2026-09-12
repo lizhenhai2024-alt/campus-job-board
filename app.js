@@ -282,6 +282,7 @@ function companyCard(g, index, applyUsed=0){
   const top=g.top, v=top._evaluation;
   const cm=g.cm;
   const priCls=v.priorityScore>=85?'hi':v.priorityScore>=75?'mid':'';
+  const hcData=(window.COMPANY_HC_SALARY&&(window.COMPANY_HC_SALARY[g.companyName]||window.COMPANY_HC_SALARY[g.name]))||null;
   const events=riskEvents(riskFor(g.name));
   const highRisk=events.filter(e=>['A','B'].includes(e.evidenceLevel)&&e.sentiment==='negative').length;
   const internRisk=events.filter(e=>e.type==='intern_conversion').length;
@@ -307,6 +308,7 @@ function companyCard(g, index, applyUsed=0){
           ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
           ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
         </div>
+        ${hcData?`<div class="co-hc-salary" style="font-size:12px;color:#666;margin-top:4px;line-height:1.5"><span style="color:#2e7d32;font-weight:600">HC:</span> ${esc(hcData.hc)} &nbsp;|&nbsp; <span style="color:#1565c0;font-weight:600">薪资:</span> ${esc(hcData.salary)}${hcData.note?` <span style="color:#999" title="${esc(hcData.note)}">ⓘ</span>`:''}</div>`:''}
         ${watchFor(null, g.name)?`<div class="co-watch">要注意 ${esc(watchFor(null, g.name))}</div>`:''}
       </div>
     </header>
