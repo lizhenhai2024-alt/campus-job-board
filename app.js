@@ -132,11 +132,7 @@ function mergeYingzhuan(jobs){
   });
   return add.concat(jobs||[]);
 }
-function watchFor(job, company){
-  if(job&&job.watch) return job.watch;
-  const cm=companyMetaFor(company||(job&&job.company));
-  return (cm&&cm.watch)||'';
-}
+function watchFor(job, company){return '';}
 function riskFor(company){return S.riskProfiles.find(p=>sameCompany(p.company,company)||(p.aliases||[]).some(a=>sameCompany(a,company)))||null}
 const COMPANY_META_SOURCES=[{exportName:'companyMeta',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-meta.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-meta.js']}];
 async function loadCompanyMeta(){
