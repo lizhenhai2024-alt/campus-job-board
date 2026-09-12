@@ -485,10 +485,16 @@
   function explicitNon2027Title(title){
     title=String(title||'');
     if(/2027/.test(title)) return false;
-    return /(2025|2026)(届|年)?[^\n]{0,8}(校招|校园招聘)|20(25|26)届/i.test(title);
+    return /(2025|2026)(届|年)?[^\n]{0,8}(校招|校园招聘)|20(25|26)届|25\/26(可投|届)?|往届(可投|毕业生)?|2025-2026/i.test(title);
   }
   function gate(job,now=new Date()){
     const old=oldGate(job,now),t=sourceText(job);
+    const f=job.candidateFit||{};
+    const gateText=[job.title,job.description,job.city,job.company,
+      ...arr(job.roleFamily),...arr(job.experienceKeywords),...arr(job.preferenceTags),...arr(job.riskTags),
+      ...arr(f.major&&f.major.evidence),...arr(f.eligibilityEvidence),
+      ...arr(f.responsibility&&f.responsibility.business),...arr(f.responsibility&&f.responsibility.technical)
+    ].filter(Boolean).join(' ');
     const reasons=old.reasons.filter(x=>
       !/^必须.+当前英语画像不满足$/.test(x) &&
       x!=='学历要求为硕士/研究生，本科不满足' &&
@@ -496,10 +502,10 @@
     );
     if(explicitNon2027Title(job.title)) reasons.push('岗位标题明确为非2027届');
     if(advancedDegreeRequired(t,job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
-    if(hardTechRequired(t)) reasons.push('存在必须的技术能力门槛');
+    if(hardTechRequired(gateText)) reasons.push('存在必须的技术能力门槛');
     const titleLang=languageSpecificTitle(job.title);
     if(titleLang&&!alternativesSatisfied(String(job.title||''))&&!/优先|加分|优势|更佳|preferred|plus/i.test(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
-    const lang=mandatorySmallLanguage(t);
+    const lang=mandatorySmallLanguage(gateText);
     if(lang) reasons.push(`必须${lang}，当前英语画像不满足`);
     return {passed:reasons.length===0,reasons:[...new Set(reasons)]};
   }
