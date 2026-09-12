@@ -585,8 +585,11 @@
 
     const fitLevel=base.fitLevel;
     if((LEVEL_RANK[candidate]||0)>(LEVEL_RANK[fitLevel]||0)) candidate=fitLevel;
-    if(base.dataQuality.status==='PARTIAL' && (LEVEL_RANK[candidate]||0)>LEVEL_RANK.B) candidate='B';
     if(keepEnglishGtmA(base, job) && (LEVEL_RANK[candidate]||0)<LEVEL_RANK.A) candidate='A';
+    // PARTIAL cap must run last: keepEnglishGtmA does not check dataQuality, so if it ran
+    // after the cap it could re-promote a PARTIAL-quality job back above B (see OPPO
+    // "媒介经理（海外-小语种）" case caught by calibrate-v1.2.js on the 2026-09-10 live pool).
+    if(base.dataQuality.status==='PARTIAL' && (LEVEL_RANK[candidate]||0)>LEVEL_RANK.B) candidate='B';
     return candidate;
   }
 
@@ -702,4 +705,57 @@
   S.suspiciousCompany=suspiciousCompany;
   S.evaluate=evaluate;
   S.compare=compare;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+// ===== V1.4 industry trend advisory (was scoring-v1.4-industry-trend-patch.js) =====
+// Display-only signal, modeled after the existing company-tier A/B/C treatment: it never
+// touches fit.score, priorityScore, level, or recommendationLevel. Rationale: 评价规则 V2.0 §4
+// ("不进公式") already establishes that company prestige must stay out of the P/Fit formula so
+// hype doesn't drown out actual job-candidate fit; the same reasoning applies to macro industry
+// trend (新能源/半导体/机器人/跨境电商 vs 教培/纯翻译等) — it belongs on the card as context, not
+// baked into the score. Classification source: 求职项目「HR专家求职顾问」提示词文档 §三"行业趋势判断参考"
+// (kept in the claude.ai 求职 project, not in this repo) — 新能源/半导体/机器人/跨境电商/AI/医疗器械
+// 为上升方向，教培/纯翻译等事务性文字工作为承压方向，其余默认平台行业。
+(function(root){
+  'use strict';
+  const S=root.CampusScoring;
+  if(!S?.evaluate) throw new Error('CampusScoring V1.3 must load before V1.4 industry trend patch');
+
+  const oldEvaluate=S.evaluate;
+
+  // Matched against company name + job title only (not JD body) to avoid false hits from
+  // benefits boilerplate ("五险一金"、"补充医疗保险" etc. must not tag a job as 医疗/生物医药).
+  const RISING=[
+    ['新能源/储能', /新能源|储能|光伏|锂电|充换电|风电|氢能|宁德时代|比亚迪|蔚来|理想汽车|小鹏|阳光电源|亿纬|欣旺达|隆基|正泰|EcoFlow|正力新能|创维/i],
+    ['半导体/高端制造', /半导体|芯片|集成电路|晶圆|封测|中芯|华虹|长电|北方华创|中微公司|汇顶|兆易|韦尔/i],
+    ['机器人/智能装备', /机器人|人形|智能装备|无人机|大疆|埃斯顿|汇川|优必选|宇树|低空经济|商业航天/i],
+    ['跨境电商/品牌出海', /跨境电商|独立站|亚马逊|TikTok\s*Shop|Shein|Temu|安克|Anker|傲基|赛维|致欧|乐歌|图拉斯|拓竹|沐瞳|传音|出海/i],
+    ['AI/互联网科技', /人工智能|大模型|AIGC|算力|云计算|字节跳动|阿里巴巴|腾讯|百度|华为|商汤|讯飞|美团|快手|小红书|小米/i],
+    ['医疗器械/生物医药', /医药|生物科技|医疗器械|制药|CRO|CDMO|迈瑞|药明|恒瑞|联影|微创医疗/i]
+  ];
+  const PRESSURED=[
+    ['教培', /教育培训|教研|学而思|新东方|有道精品课|网易有道.*教研|作业帮|猿辅导/i],
+    ['纯翻译/事务性文字', /纯翻译|翻译专员|笔译专员|本地化专员$/i],
+    ['标准化事务性', /行政文员|数据录入|客服专员|电话客服|前台接待/i]
+  ];
+
+  function industryTrend(job={}){
+    const id=[job.company,job.title].filter(Boolean).join(' ');
+    for(const [label,rx] of RISING){ if(rx.test(id)) return {trend:'上升',label,reasons:[`公司/岗位命中「${label}」赛道关键词`]}; }
+    for(const [label,rx] of PRESSURED){ if(rx.test(id)) return {trend:'承压',label,reasons:[`公司/岗位命中「${label}」赛道关键词`]}; }
+    return {trend:'平台',label:'',reasons:['未命中已知上升或承压赛道关键词，按平台行业处理']};
+  }
+
+  function evaluate(job,now=new Date()){
+    const result=oldEvaluate(job,now);
+    result.industryTrend=industryTrend(job);
+    if(result.reasoning){
+      const it=result.industryTrend;
+      result.reasoning.industryTrend=`行业趋势（仅供参考，不计入匹配分/优先分）：${it.trend}${it.label?'·'+it.label:''}。`;
+    }
+    return result;
+  }
+
+  S.industryTrend=industryTrend;
+  S.evaluate=evaluate;
 })(typeof globalThis!=='undefined'?globalThis:this);

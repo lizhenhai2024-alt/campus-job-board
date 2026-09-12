@@ -29,14 +29,14 @@
 | 文件 | 作用 |
 |---|---|
 | `index.html` | 看板页面（KPI 卡片、筛选、岗位列表、流程管线、图表、Offer 管理） |
-| `scoring.js` | 评分引擎（原 `scoring-v1.1.js` + 语言 / 校准 / 质量三层 patch 合并，逻辑未变） |
+| `scoring.js` | 评分引擎（原 `scoring-v1.1.js` + 语言 / 校准 / 质量 / 行业趋势四层 patch 合并）。V1.4 新增 `industryTrend` 字段（上升/平台/承压，按公司名+岗位标题判定，不扫 JD 正文以避免福利条款误判），与公司层 A/B/C 一样只做展示，不进 Fit/Priority 计算，理由见评价规则 V2.0 §4「不进公式」 |
 | `yingzhuan-jobs.js` | 英专专项拆岗。可投的（绿联、倍思、韶音、影石、科沃斯、携程）钉在「按公司」顶部；大疆、联合利华、有道、网易游戏、TP-Link、大华等机会不大的不置顶，仍可筛选。不改 V1.2 `scoring.js` |
 | `shortlist.js` | 收窄投递清单（冲刺/主力/保底/待归类）。网页「投递清单」页使用；待归类按长期发展前景标避开/再看，不计入可投配额。不改 `scoring.js` |
 | `docs/投递清单_2027届_收窄版.md` | 清单源文档，由 `scripts/build-shortlist.cjs` 从 AI_Job 岗位池生成 |
 | `api/state.js` | 云同步后端（Vercel Serverless Function + Vercel Marketplace 的 Upstash Redis） |
 | `audit-intelligence-v1.3.cjs` | S-A-B 情报覆盖审计（开发期诊断脚本，已改引用 `scoring.js`） |
 | `calibrate-v1.1.js` / `calibrate-v1.2.js` | 推荐等级校准（开发期诊断脚本，保留供历史对照，已改引用 `scoring.js`） |
-| `scoring-v1.1/v1.2/v1.3-quality.test.js` | 评分边界回归测试 |
+| `scoring-v1.1/v1.2/v1.3-quality/v1.4-industry.test.js` | 评分边界回归测试 |
 | `评价规则_…V1.2.md` / `情报层规则_…V1.3.md` | V1.2 适配规则 + 情报层（冻结） |
 | `评价规则_…V2.0.md` | 英专看板人岗五维 P（公司层不进分） |
 | `.github/workflows/board-check.yml` | CI：语法检查、测试、实时岗位池校准、情报覆盖审计、接线校验 |

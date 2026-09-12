@@ -12,6 +12,7 @@ on:
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
       - 'scoring-v1.3-quality.test.js'
+      - 'scoring-v1.4-industry.test.js'
       - 'calibrate-v1.1.js'
       - 'calibrate-v1.2.js'
       - '.github/workflows/board-check.yml'
@@ -26,6 +27,7 @@ on:
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
       - 'scoring-v1.3-quality.test.js'
+      - 'scoring-v1.4-industry.test.js'
       - 'calibrate-v1.1.js'
       - 'calibrate-v1.2.js'
       - '.github/workflows/board-check.yml'
@@ -60,6 +62,7 @@ jobs:
           node scoring-v1.1.test.js
           node scoring-v1.2.test.js
           node scoring-v1.3-quality.test.js
+          node scoring-v1.4-industry.test.js
       - name: Calibrate against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
       - name: Audit S-A-B intelligence coverage
