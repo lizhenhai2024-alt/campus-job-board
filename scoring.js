@@ -27,7 +27,7 @@
   };
 
   const TITLE_DIRS = [
-    ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培|AI-?HR|HR培训生/i],
+    ['HR·HRBP', /HRBP|人力资源|招聘运营|雇主品牌|人才发展|HR管培|AI-?HR|HR培训生/i],
     ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析|商务管理|商务运营|合规运营/i],
     ['国际物流·供应链管培', /国际物流|物流.*管培|物流商务|物流运营|供应链|采购管理|供应链管培/i],
     ['跨境电商运营', /跨境电商|电商运营|Amazon|TikTok\s*Shop|Shopee|独立站|DTC|店铺运营|平台运营/i],
@@ -48,7 +48,7 @@
     ['产品·业务运营', /产品运营|产品经理|产品管理|产品策划|业务运营|品类运营|商品运营|中台运营|运营专员/i],
     ['品牌·内容·用户运营', /品牌运营|品牌营销|内容运营|社媒|KOL|SEO|新媒体|用户运营|用户增长|社区运营|品牌市场|内容创作者|创作者营销|内容营销/i],
     ['经营·商业分析', /经营分析|商业分析|战略运营|经营管理|策略分析|商务管理|商务运营|合规运营/i],
-    ['HR·HRBP', /HRBP|人力资源|招聘运营|校园招聘|雇主品牌|人才发展|HR管培|AI-?HR|HR培训生/i],
+    ['HR·HRBP', /HRBP|人力资源|招聘运营|雇主品牌|人才发展|HR管培|AI-?HR|HR培训生/i],
     ['其他', /.*/i]
   ];
 
@@ -88,6 +88,8 @@
     for(const [name,rx] of DIRS){ if(name!=='其他' && rx.test(family)) return name; }
     const jd=String(job.jobDescription||'');
     for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(jd)) return name; }
+    const req=String(job.jobRequirements||'').replace(/识别关键词[:：][^。；]*/g,'');
+    for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(req)) return name; }
     const desc=String(job.description||'').replace(/识别关键词[:：][^。；]*/g,'');
     for(const [name,rx] of DIRS){ if(name==='PMO·项目管理'||name==='其他') continue; if(rx.test(desc)) return name; }
     return '其他';
