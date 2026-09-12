@@ -110,6 +110,7 @@ window.SHORTLIST_ITEMS = [
     "track": "智能硬件出海",
     "channel": "管培生",
     "url": "https://skyworth.hotjob.cn/SU668e3a541eb8050602c1b176/pb/posDetail.html?postId=6a69d1db53b4650cd34cda07&postType=campus",
+    "note": "长期外派（全球派遣）",
     "prospect": "apply"
   },
   {
