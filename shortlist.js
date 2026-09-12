@@ -191,7 +191,7 @@ window.SHORTLIST_ITEMS = [
     "city": "杭州",
     "track": "品牌方跨境",
     "channel": "管培生",
-    "url": "https://babycare.zhiye.com/campus/detail?jobAdId=390849526",
+    "url": "https://babycare.zhiye.com/campus/detail?jobAdId=42d2fa1b-0446-4a6e-97e6-7c350a6e26ee",
     "prospect": "apply"
   },
     {
