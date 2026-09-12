@@ -270,7 +270,7 @@ function companyJobRow(j, applyUsed=0){
       ${watchFor(j)?`<div class="co-job-watch">要注意 ${esc(watchFor(j))}</div>`:''}
       ${(()=>{const sl=isShortlistJob(j);return sl?`<div class="co-job-watch" style="color:#e65100">投递清单·${shortlistBucketLabel[sl.bucket]||sl.bucket}</div>`:'';})()}
     </div>
-    <div class="co-job-pri"><b class="${priCls}">${esc(v.priorityScore)}</b><span>优先分</span></div>
+    <div class="co-job-pri"><b class="${priCls}">${esc(v.priorityScore)}</b><span>优先分</span><b style="color:#999;margin-left:8px;font-weight:600">${esc(v.fit.score)}</b><span style="color:#999">适配分</span></div>
     <div class="co-job-actions">
       ${j.sourceUrl?`<a class="btn primary" target="_blank" rel="noopener" href="${esc(j.sourceUrl)}">${j.sourceType==='official'?'立即投递':'查看来源'}</a>`:''}
       <button class="btn soft" data-detail="${esc(j.id)}">评价详情</button>
@@ -300,7 +300,7 @@ function companyCard(g, index, applyUsed=0){
           ${cm&&(cm.scale||cm.nature)?`<span class="tag">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}
         </div>
         <div class="co-meta">
-          <span class="co-pri ${priCls}">优先 ${esc(v.priorityScore)}</span>
+          <span class="co-pri ${priCls}">优先 ${esc(v.priorityScore)}</span><span style="color:#999;margin-left:6px;font-size:12px">适配 ${esc(v.fit.score)}</span>
           <span>${g.jobs.length} 个可投岗位</span>
           <span>已投 ${applyUsed}/${COMPANY_JOB_CAP}</span>
           ${recPills}
