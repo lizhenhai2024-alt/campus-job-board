@@ -214,7 +214,6 @@ function jobCard(j, extraCount=0, applyUsed=0){
         ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
         ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
         ${watchFor(j)?`<span class="tag bad" title="${esc(watchFor(j))}">要注意</span>`:''}
-        ${isYingzhuanJob(j)?`<span class="tag ok">英专专项</span>`:''}
         ${extraChip}
       </div>
     </div>
@@ -276,7 +275,6 @@ function companyCard(g, index, applyUsed=0){
       <div class="co-id">
         <div class="co-name-row">
           <button class="company-name" data-company="${esc(g.key)}" data-company-label="${esc(g.companyName)}" title="只看该公司">${esc(g.companyName)}</button>
-          ${g.featured?`<span class="tag ok">英专专项</span>`:''}
           ${cm&&(cm.scale||cm.nature)?`<span class="tag">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}
         </div>
         <div class="co-meta">
@@ -298,7 +296,7 @@ function companyCard(g, index, applyUsed=0){
 
 /* ---- 机会看板页 ---- */
 function quickFilters(){
-  return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button><button class="chip yingzhuan ${S.filter.yingzhuan?'active':''}" data-qyingzhuan="1">英专专项</button>`
+  return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button>`
 }
 function jobsPage(){
   const all=evaluated(), normal=normalJobs(), raw=filtered();
@@ -333,8 +331,8 @@ function jobsPage(){
       const page=rest.slice(0,S.limit);
       const featCards=featured.map((g,i)=>companyCard(g, i, applyCounts[g.key]||0)).join('');
       const restCards=page.map((g,i)=>companyCard(g, featured.length+i, applyCounts[g.key]||0)).join('');
-      summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · 可投专项 ${featured.length} 家置顶 · 机会不大的不钉在顶部</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'只置顶英专可投拆岗；大疆 / 联合利华 / 有道等仍在实时池或「英专专项」筛选里'}</span></div>`;
-      listHtml=`<div class="board-section"><div class="board-section-h">英专专项拆岗 · 可投优先</div><p class="board-section-note">只把英语是生产资料、本科英专有真实机会的公司钉在顶部。大疆、联合利华、有道、网易游戏、TP-Link、大华等通过期望低或要驻外/理工的，不置顶，仍可点「英专专项」或搜索查看。投递前请回官网确认届别、HC 与是否仍开放。</p><div class="company-grid">${featCards}</div></div><div class="board-section"><div class="board-section-h">实时岗位池 · 按投递优先级</div><div class="company-grid">${restCards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div></div>`;
+      summary=`<div class="summary"><b>共 ${groups.length} 家公司</b><span class="muted">${raw.length} 个岗位 · ${featured.length} 家精选置顶 · 机会不大的不钉在顶部</span>${companyChip}<span class="muted">${S.filter.degree==='硕士'?'硕士及以上学历要求岗位 · 本科画像不满足硬门槛，仅作参考':'只把匹配度高、有真实机会的公司钉在顶部；其余公司仍在实时岗位池里可搜索查看'}</span></div>`;
+      listHtml=`<div class="board-section"><div class="board-section-h">精选公司 · 可投优先</div><p class="board-section-note">只把匹配度扎实、有真实投递机会的公司钉在顶部。通过期望低、要驻外/理工背景、或方向偏差较大的不置顶，仍在下方实时岗位池里可搜索查看。投递前请回官网确认届别、HC 与是否仍开放。</p><div class="company-grid">${featCards}</div></div><div class="board-section"><div class="board-section-h">实时岗位池 · 按投递优先级</div><div class="company-grid">${restCards||'<div class="empty" style="grid-column:1/-1">没有符合当前筛选条件的公司</div>'}</div></div>`;
       moreHtml=rest.length>S.limit?'<p class="more"><button class="btn soft" id="more">加载更多公司</button></p>':'';
     }else{
       const page=groups.slice(0,S.limit);
@@ -718,7 +716,6 @@ app.addEventListener('click',ev=>{
   if(ev.target.id==='more'){S.limit+=S.viewMode==='company'?16:40;render();return}
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
-  if(ev.target.closest('[data-qyingzhuan]')){S.filter.yingzhuan=!S.filter.yingzhuan;S.limit=S.viewMode==='company'?20:40;render();return}
   const listBucket=ev.target.closest('[data-list-bucket]')?.dataset.listBucket;
   if(listBucket!==undefined){S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.bucket=listBucket;render();return}
   if(ev.target.closest('[data-list-mtp]')){S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.mtp=!S.list.mtp;render();return}
