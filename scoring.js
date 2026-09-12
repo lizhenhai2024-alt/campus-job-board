@@ -517,7 +517,7 @@
     if(advancedDegreeRequired(t,job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
     if(hardTechRequired(gateText)) reasons.push('存在必须的技术能力门槛');
     // 规则2：专业口译硬门槛——同传/交传要求CATTI等专业口译资质，TEM-4笔译向不达标
-    if(/同声传译|交替传译|同传|交传/.test([gateText,job.jobDescription,job.jobRequirements].filter(Boolean).join(' '))) reasons.push('岗位要求专业口译（同传/交传），当前无口译资质');
+    if(/(同声传译|交替传译|同传(?=能力|经验|译员|翻译|水平|资质|证书|、|\/|交传)|交传(?=能力|经验|译员|翻译|水平|资质|证书|、|\/|同传))/.test([gateText,job.jobDescription,job.jobRequirements].filter(Boolean).join(' '))) reasons.push('岗位要求专业口译（同传/交传），当前无口译资质');
     const titleLang=languageSpecificTitle(job.title);
     if(titleLang&&!alternativesSatisfied(String(job.title||''))&&!/优先|加分|优势|更佳|preferred|plus/i.test(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
     const lang=mandatorySmallLanguage(gateText);
