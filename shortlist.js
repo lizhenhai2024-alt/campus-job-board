@@ -192,20 +192,7 @@ window.SHORTLIST_ITEMS = [
     "url": "https://babycare.zhiye.com/campus/detail?jobAdId=390849526",
     "prospect": "apply"
   },
-  {
-    "id": "s-创维集团-海外电商管培生",
-    "bucket": "sprint",
-    "company": "创维集团",
-    "companyId": "skyworth",
-    "title": "海外电商管培生",
-    "city": "深圳",
-    "track": "智能硬件出海",
-    "channel": "管培生",
-    "url": "https://skyworth.hotjob.cn/SU668e3a541eb8050602c1b176/pb/posDetail.html?postId=6a69d1dde05c792b8ed1e35e&postType=campus",
-    "note": "长期派驻/驻外",
-    "prospect": "apply"
-  },
-  {
+    {
     "id": "s-图拉斯-内容管培生",
     "bucket": "sprint",
     "company": "图拉斯",
