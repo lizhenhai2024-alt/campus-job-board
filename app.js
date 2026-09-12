@@ -326,7 +326,7 @@ function jobsPage(){
     const groups=groupCompanies(raw);
     const featured=groups.filter(g=>g.featured);
     const rest=groups.filter(g=>!g.featured);
-    const showSplit=!S.filter.company && !S.filter.yingzhuan && !S.filter.q && featured.length;
+    const showSplit=false;
     if(showSplit){
       const page=rest.slice(0,S.limit);
       const featCards=featured.map((g,i)=>companyCard(g, i, applyCounts[g.key]||0)).join('');
