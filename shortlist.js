@@ -706,18 +706,6 @@ window.SHORTLIST_ITEMS = [
     "prospect": "apply"
   },
   {
-    "id": "c-shein-全球供应链管培生广州-2027届",
-    "bucket": "core",
-    "company": "SHEIN",
-    "companyId": "shein",
-    "title": "全球供应链管培生（广州）-2027届",
-    "city": "广州",
-    "track": "品牌方跨境",
-    "channel": "管培生",
-    "url": "https://app.mokahr.com/campus-recruitment/shein/2932#/job/b46690dd-38e0-46d8-a813-644fcbd29e2e",
-    "prospect": "apply"
-  },
-  {
     "id": "c-顾家家居-电商运营-跨境方向kj",
     "bucket": "core",
     "company": "顾家家居",
