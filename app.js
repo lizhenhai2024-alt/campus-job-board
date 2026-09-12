@@ -303,7 +303,11 @@ function quickFilters(){
 function jobsPage(){
   const all=evaluated(), normal=normalJobs(), raw=filtered();
   const applyCounts=applyCountByCompany();
-  const dirs=['全部',...uniq(normal.map(x=>x._evaluation.direction))],cities=['全部',...uniq(normal.map(x=>x.city))];
+  const dirs=['全部',...uniq(normal.map(x=>x._evaluation.direction))];
+  const cityAll=uniq(normal.map(x=>x.city));
+  const cityPrimary=E.PROFILE.targetCities.filter(c=>cityAll.includes(c));
+  const cityRest=cityAll.filter(x=>!cityPrimary.includes(x)).sort((a,b)=>a.localeCompare(b,'zh-Hans-CN'));
+  const cityOptionsHtml=`<option ${S.filter.city==='全部'?'selected':''}>全部</option>${cityPrimary.length?`<optgroup label="常用城市">${cityPrimary.map(x=>`<option ${S.filter.city===x?'selected':''}>${esc(x)}</option>`).join('')}</optgroup>`:''}${cityRest.length?`<optgroup label="其他城市">${cityRest.map(x=>`<option ${S.filter.city===x?'selected':''}>${esc(x)}</option>`).join('')}</optgroup>`:''}`;
   const ss=normal.filter(x=>['S++','S'].includes(x._evaluation.level)).length,a=normal.filter(x=>x._evaluation.level==='A').length,partial=normal.filter(x=>x._evaluation.dataQuality.status==='PARTIAL').length,invalid=all.filter(x=>x._evaluation.gate.passed&&x._evaluation.dataQuality.status==='INVALID').length;
   const targetDirs=[
     {label:'GTM·市场策略',key:'GTM·市场策略'},
@@ -374,7 +378,7 @@ function jobsPage(){
       <div class="field"><label>学历</label><select id="degree">${['本科','硕士'].map(x=>`<option ${S.filter.degree===x?'selected':''}>${x}</option>`).join('')}</select></div>
       <div class="field"><label>等级</label><select id="level" ${S.filter.degree==='硕士'?'disabled':''}>${LEVELS.map(x=>`<option ${S.filter.level===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
       <div class="field"><label>方向</label><select id="direction">${dirs.map(x=>`<option ${S.filter.direction===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
-      <div class="field"><label>城市</label><select id="city">${cities.map(x=>`<option ${S.filter.city===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div>
+      <div class="field"><label>城市</label><select id="city">${cityOptionsHtml}</select></div>
       <div class="field"><label>信息状态</label><select id="quality" ${S.filter.degree==='硕士'?'disabled':''}>${['全部','VALID','PARTIAL','INVALID'].map(x=>`<option ${S.filter.quality===x?'selected':''}>${x}</option>`).join('')}</select></div>
       <div class="field"><label>来源</label><select id="source">${['全部','官方','二手'].map(x=>`<option ${S.filter.source===x?'selected':''}>${x}</option>`).join('')}</select></div>
       <button id="reset" class="btn ghost" title="重置全部筛选"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>重置</button>
