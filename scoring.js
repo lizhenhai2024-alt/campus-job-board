@@ -326,7 +326,7 @@
     const t=[sourceText(job),job.jobDescription,job.jobRequirements].filter(Boolean).join(' '), items=[];
     let deduction=0;
     function add(label,value){items.push({label,value});deduction+=value;}
-    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻|需.{0,2}赴海外|跨境出差|国际出差/.test(t)) add('长期派驻/驻外',15);
+    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻|需.{0,2}赴海外|跨境出差|国际出差|驻派/.test(t)) add('长期派驻/驻外',15);
     if(/(频繁|高频次?|大量|经常).{0,4}出差|出差.{0,4}(频繁|高频)/.test(t)) add('高频出差',8);
     if(/销售KPI|销售指标|业绩指标|销售业绩/.test(t)) add('强销售KPI',10);
     if(/高压|高强度|节奏快|抗压能力强/.test(t)) add('高压/高强度',5);
@@ -484,7 +484,7 @@
     if(/硕士|博士/.test(title) && !/本科/.test(title)) return true;
     for(const clause of clauses(t)){
       if(bachelorExplicitlyAllowed(clause)) continue;
-      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|面向博士|硕士毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士学历|须为硕士|要求硕士|面向硕士)/i.test(clause);
+      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|面向博士|硕士.{0,4}毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士.{0,4}学历|须为硕士|要求硕士|面向硕士)/i.test(clause);
       const preferred=/(硕士优先|博士优先|研究生优先)/i.test(clause);
       if(advanced&&!preferred) return true;
     }
@@ -518,7 +518,7 @@
       x!=='存在必须的技术能力门槛'
     );
     if(explicitNon2027Title(job.title)) reasons.push('岗位标题明确为非2027届');
-    if(advancedDegreeRequired(t,job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
+    if(advancedDegreeRequired([t,job.jobRequirements,job.jobDescription].filter(Boolean).join(' '),job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
     if(hardTechRequired(gateText)) reasons.push('存在必须的技术能力门槛');
     // 规则2：专业口译硬门槛——同传/交传要求CATTI等专业口译资质，TEM-4笔译向不达标
     if(/(同声传译|交替传译|同传(?=能力|经验|译员|翻译|水平|资质|证书|、|\/|交传)|交传(?=能力|经验|译员|翻译|水平|资质|证书|、|\/|同传))/.test([gateText,job.jobDescription,job.jobRequirements].filter(Boolean).join(' '))) reasons.push('岗位要求专业口译（同传/交传），当前无口译资质');
