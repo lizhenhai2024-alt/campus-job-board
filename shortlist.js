@@ -203,7 +203,20 @@ window.SHORTLIST_ITEMS = [
     "channel": "管培生",
     "url": "https://lanhevip.jobs.feishu.cn/605335/position/7682767011524921663/detail",
     "prospect": "apply"
-    },
+      },
+  {
+    "id": "s-创维集团-海外电商管培生",
+    "bucket": "sprint",
+    "company": "创维集团",
+    "companyId": "skyworth",
+    "title": "海外电商管培生",
+    "city": "深圳",
+    "track": "智能硬件出海",
+    "channel": "管培生",
+    "url": "https://skyworth.hotjob.cn/SU668e3a541eb8050602c1b176/pb/posDetail.html?postId=6a69d1dde05c792b8ed1e35e&postType=campus",
+    "note": "长期海外外派+海外出差",
+    "prospect": "apply"
+  },
   {
     "id": "s-傲基科技-27校招-管培生独立站方向",
     "bucket": "sprint",
