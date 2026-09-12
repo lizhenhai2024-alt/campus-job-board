@@ -122,6 +122,7 @@ window.SHORTLIST_ITEMS = [
     "track": "汽车/新能源出海",
     "channel": "管培生",
     "url": "https://sany.zhiye.com/campus/detail?jobAdId=270972186",
+    "note": "长期外派（全球海外市场，轮岗后派驻）",
     "prospect": "apply"
   },
   {
