@@ -203,8 +203,19 @@ window.SHORTLIST_ITEMS = [
     "channel": "管培生",
     "url": "https://lanhevip.jobs.feishu.cn/605335/position/7682767011524921663/detail",
     "prospect": "apply"
+    },
+  {
+    "id": "s-傲基科技-27校招-管培生独立站方向",
+    "bucket": "sprint",
+    "company": "傲基科技",
+    "title": "27校招-管培生（独立站方向）",
+    "city": "深圳",
+    "track": "品牌方跨境",
+    "channel": "管培生",
+    "url": "https://aukeys.zhiye.com/campus/detail?jobAdId=085628db-9d5d-4c93-a30e-26302a9daad7",
+    "prospect": "apply"
   },
-    {
+  {
     "id": "s-oppo-产品营销经理海外-小语种",
     "bucket": "sprint",
     "company": "OPPO",
