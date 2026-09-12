@@ -131,7 +131,7 @@ window.SHORTLIST_ITEMS = [
     "company": "海信",
     "companyId": "hisense",
     "title": "海外产品营销(J44569)",
-    "city": "佛山",
+    "city": "青岛/佛山",
     "track": "智能硬件出海",
     "channel": "—",
     "url": "https://jobs.hisense.com/campus/detail?jobAdId=350355037",
