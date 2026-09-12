@@ -202,7 +202,7 @@ function jobCard(j, extraCount=0, applyUsed=0){
     <div class="cell-grade"><span class="pill ${pillCls}">${esc(pillText)}</span><span class="row-reason">${esc(reason)}</span></div>
     <div class="cell-main">
       <div class="company"><button class="company-name" data-company="${esc(companyKey(j.company))}" data-company-label="${esc(companyName)}" title="查看该公司最匹配的 3 个岗位">${esc(companyName)}</button>${cm&&(cm.scale||cm.nature)?`<span class="tag" style="margin-left:8px;padding:2px 7px;font-size:11px">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}</div>
-      <h3 class="row-title">${esc(j.title||'待核岗位')}</h3>
+      <h3 class="row-title">${isYingzhuanJob(j)?`<span style="color:#f5a623;font-size:16px;margin-right:4px;vertical-align:middle" title="精选岗位">★</span>`:''}${esc(j.title||'待核岗位')}</h3>
       <div class="tags">
         <span class="tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${esc(j.city||'待核')}</span>
         <span class="tag">${esc(v.direction)}</span>
@@ -244,7 +244,7 @@ function companyJobRow(j, applyUsed=0){
   return`<div class="co-job">
     <span class="pill ${pillCls}">${esc(pillText)}</span>
     <div class="co-job-main">
-      <button class="co-job-title" data-detail="${esc(j.id)}" title="${esc(j.title||'待核岗位')}">${esc(j.title||'待核岗位')}</button>
+      <button class="co-job-title" data-detail="${esc(j.id)}" title="${esc(j.title||'待核岗位')}">${isYingzhuanJob(j)?`<span style="color:#f5a623;font-size:13px;margin-right:2px" title="精选岗位">★</span>`:''}${esc(j.title||'待核岗位')}</button>
       <div class="co-job-sub">${esc(j.city||'待核')} · ${esc(v.direction)} · ${esc(j.deadline||'待核')}</div>
       ${watchFor(j)?`<div class="co-job-watch">要注意 ${esc(watchFor(j))}</div>`:''}
     </div>
@@ -274,7 +274,7 @@ function companyCard(g, index, applyUsed=0){
       <span class="co-rank">${String(index+1).padStart(2,'0')}</span>
       <div class="co-id">
         <div class="co-name-row">
-          <button class="company-name" data-company="${esc(g.key)}" data-company-label="${esc(g.companyName)}" title="只看该公司">${esc(g.companyName)}</button>
+          ${g.featured?`<span style="color:#f5a623;font-size:16px;margin-right:2px;vertical-align:middle" title="精选公司">★</span>`:''}<button class="company-name" data-company="${esc(g.key)}" data-company-label="${esc(g.companyName)}" title="只看该公司">${esc(g.companyName)}</button>
           ${cm&&(cm.scale||cm.nature)?`<span class="tag">${esc([cm.scale,cm.nature].filter(Boolean).join(' · '))}</span>`:''}
         </div>
         <div class="co-meta">
