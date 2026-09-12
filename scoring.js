@@ -315,7 +315,11 @@
     if(/频繁出差|高频出差|大量出差|经常出差/.test(t)) add('高频出差',8);
     if(/销售KPI|销售指标|业绩指标|销售业绩/.test(t)) add('强销售KPI',10);
     if(/高压|高强度|节奏快|抗压能力强/.test(t)) add('高压/高强度',5);
-    if(/SQL|Python|编程/.test(t) && /(优先|加分|了解|熟悉者优先)/.test(t)) add('关键技能需补足',8);
+    // 关键技能需补足：技能词与"优先/加分/了解/熟悉者优先"软性标记必须在同一分句内
+    // 同时出现，避免跨句虚假关联——如"数据敏感度优先。"+"须精通 SQL。"被整体 blob
+    // 匹配误判成软性加分，把本应拦截的硬性技术要求漏掉（与 Gate 层 hardTechRequired
+    // 的分句匹配保持一致）。
+    if(String(t).split(/[。；;，,\n]/).some(clause=>/(SQL|Python|编程)/i.test(clause)&&/(优先|加分|了解|熟悉者优先)/i.test(clause))) add('关键技能需补足',8);
     const city=String(job.city||'');
     if(city && city!=='全国' && !PROFILE.targetCities.some(c=>city.includes(c))) add('城市非目标城市',5);
     return {deduction:Math.min(35,deduction),items};
