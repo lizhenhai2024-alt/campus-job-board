@@ -24,7 +24,7 @@ window.SHORTLIST_ITEMS = [
     "city": "长沙",
     "track": "智能硬件出海",
     "channel": "—",
-    "url": "https://wondersharecampus.zhiye.com/campus/detail?jobAdId=621128976",
+    "url": "https://wondersharecampus.zhiye.com/campus/detail?jobAdId=93cec780-3c95-4e9f-9c99-4328762ee1ac",
     "prospect": "apply"
   },
   {
