@@ -42,6 +42,8 @@ assert.equal(S.gate(job({title:'校招正式-蔚来顾问（25/26可投）-金�
 assert.equal(S.gate(job({title:'品牌营销专员',languages:['英语','德语','法语','西班牙语'],description:'英语可作为工作语言；如有德语、法语、西班牙语等基础者优先。'}),now).passed,true,'languages字段带优先不应判必须小语种');
 assert.equal(S.direction(job({title:'渠道运营经理',description:'',roleFamily:['其他'],jobDescription:'为GTM、运营、销售等团队提供技术工具支持，负责AI大模型落地。',jobRequirements:'计算机、人工智能等相关专业优先。'})),'其他','GTM作为服务对象不应判GTM方向');
 assert.ok(S.evaluate(job({title:'GTM管培生',jobRequirements:'能够接受长期外派，理工科背景优先。'}),now).risk.items.some(i=>i.label==='长期派驻/驻外'),'任职要求中的长期外派应命中驻外风险');
+assert.equal(S.gate(job({title:'海外市场策划',description:'',roleFamily:['其他'],jobRequirements:'能胜任商务及技术对话的同声传译、交替传译工作。'}),now).passed,false,'同传/交传硬门槛应Gate Fail');
+assert.ok(S.evaluate(job({title:'销售管培',description:'',roleFamily:['其他'],jobRequirements:'工作节奏快，出差频繁。'}),now).risk.items.some(i=>i.label==='高频出差'),'出差频繁后置模式应命中出差风险');
 assert.equal(S.direction(job({title:'海外销售管理培训生-巴西',roleFamily:['其他'],description:'小鹏汽车官方校园招聘岗位；职类：汽车销售与服务。',jobRequirements:'本科及以上，英文或葡语流利，对海外市场有浓厚兴趣，愿意深耕海外汽车销售运营方向。'})),'外贸·海外业务','模板中的校园招聘不能归HR，任职要求中的海外市场应归外贸');
 assert.equal(S.direction(job({title:'销售大区管理培训生-北京大区',roleFamily:['其他'],description:'XX官方校园招聘岗位；职类：汽车销售与服务。',jobRequirements:'本科及以上，专业不限。'})),'其他','仅命中校园招聘模板词且无其他方向信号时不能归HR');
 

@@ -326,8 +326,8 @@
     const t=[sourceText(job),job.jobDescription,job.jobRequirements].filter(Boolean).join(' '), items=[];
     let deduction=0;
     function add(label,value){items.push({label,value});deduction+=value;}
-    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻/.test(t)) add('长期派驻/驻外',15);
-    if(/(频繁|高频次?|大量|经常).{0,4}出差/.test(t)) add('高频出差',8);
+    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻|需.{0,2}赴海外|跨境出差|国际出差/.test(t)) add('长期派驻/驻外',15);
+    if(/(频繁|高频次?|大量|经常).{0,4}出差|出差.{0,4}(频繁|高频)/.test(t)) add('高频出差',8);
     if(/销售KPI|销售指标|业绩指标|销售业绩/.test(t)) add('强销售KPI',10);
     if(/高压|高强度|节奏快|抗压能力强/.test(t)) add('高压/高强度',5);
     // 关键技能需补足：技能词与"优先/加分/了解/熟悉者优先"软性标记必须在同一分句内
@@ -516,6 +516,8 @@
     if(explicitNon2027Title(job.title)) reasons.push('岗位标题明确为非2027届');
     if(advancedDegreeRequired(t,job.title)) reasons.push('仅招硕士/博士，本科学历不满足');
     if(hardTechRequired(gateText)) reasons.push('存在必须的技术能力门槛');
+    // 规则2：专业口译硬门槛——同传/交传要求CATTI等专业口译资质，TEM-4笔译向不达标
+    if(/同声传译|交替传译|同传|交传/.test([gateText,job.jobDescription,job.jobRequirements].filter(Boolean).join(' '))) reasons.push('岗位要求专业口译（同传/交传），当前无口译资质');
     const titleLang=languageSpecificTitle(job.title);
     if(titleLang&&!alternativesSatisfied(String(job.title||''))&&!/优先|加分|优势|更佳|preferred|plus/i.test(String(job.title||''))) reasons.push(`岗位标题限定${titleLang}，当前英语画像不满足`);
     const lang=mandatorySmallLanguage(gateText);
