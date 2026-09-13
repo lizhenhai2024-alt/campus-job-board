@@ -180,7 +180,7 @@
     if(isExpired(job.deadline,now)) reasons.push('岗位已截止');
     if(/实习|intern(ship)?/i.test(String(job.title||''))) reasons.push('实习岗位，不属于当前正式校招主池');
 
-    const onlyMaster=/(面向|仅限|要求|须为).{0,20}(2027届)?应届?硕士毕业生|仅限硕士|硕士及以上|研究生及以上|硕士学历/i.test(t)
+    const onlyMaster=/(面向|仅限|要求|须为).{0,20}(2027届)?应届?硕士毕业生|仅限硕士|硕士及以上|研究生及以上|硕士学历|硕士研究生学位及以上|硕士学位及以上|硕士.{0,4}学位及以上/i.test(t)
       && !/本科及以上|本科或硕士|本科、硕士|本科\/硕士|本科生和硕士/i.test(t);
     if(onlyMaster) reasons.push('学历要求为硕士/研究生，本科不满足');
 
@@ -326,9 +326,9 @@
     const t=[sourceText(job),job.jobDescription,job.jobRequirements].filter(Boolean).join(' '), items=[];
     let deduction=0;
     function add(label,value){items.push({label,value});deduction+=value;}
-    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻|需.{0,2}赴海外|跨境出差|国际出差|驻派/.test(t)) add('长期派驻/驻外',15);
-    if(/(频繁|高频次?|大量|经常).{0,4}出差|出差.{0,4}(频繁|高频)/.test(t)) add('高频出差',8);
-    if(/销售KPI|销售指标|业绩指标|销售业绩/.test(t)) add('强销售KPI',10);
+    if(/长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻|需.{0,2}赴海外|跨境出差|国际出差|驻派|海外派遣|外派海外/.test(t)) add('长期派驻/驻外',15);
+    if(/(频繁|高频次?|大量|经常).{0,4}出差|出差.{0,4}(频繁|高频)|接受海外出差|海外出差|出差海外|需.{0,3}出差/.test(t)) add('高频出差',8);
+    if(/销售KPI|销售指标|业绩指标|销售业绩|销售目标|经营目标.{0,20}(负|达成|负责)|销售任务/.test(t)) add('强销售KPI',10);
     if(/高压|高强度|节奏快|抗压能力强/.test(t)) add('高压/高强度',5);
     // 规则4：专业背景二阶判断——JD明确要求商科/市场营销/国际贸易等专业（无'优先/相关'限定）时，
     // 英语专业候选人存在竞争劣势，标记为风险（软偏好'XX专业优先'不触发，因英语+实习可补偿）
@@ -484,7 +484,7 @@
     if(/硕士|博士/.test(title) && !/本科/.test(title)) return true;
     for(const clause of clauses(t)){
       if(bachelorExplicitlyAllowed(clause)) continue;
-      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|面向博士|硕士.{0,4}毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士.{0,4}学历|须为硕士|要求硕士|面向硕士)/i.test(clause);
+      const advanced=/(博士毕业生|应届博士|仅限博士|博士及以上|博士学历|须为博士|要求博士|面向博士|硕士.{0,4}毕业生|应届硕士|仅限硕士|硕士及以上|研究生及以上|硕士研究生学位及以上|硕士研究生及以上|硕士.{0,4}学历|须为硕士|要求硕士|面向硕士)/i.test(clause);
       const preferred=/(硕士优先|博士优先|研究生优先)/i.test(clause);
       if(advanced&&!preferred) return true;
     }
