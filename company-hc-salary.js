@@ -124,3 +124,13 @@ window.COMPANY_HC_SALARY = {
     note: ""
   }
 };
+
+// Career Fit 是独立的候选人画像模块，不参与 S/A/B 或 Candidate Fit 计算。
+// 这里仅负责在现有静态入口加载该模块，避免改动评分引擎与主应用逻辑。
+if (typeof document !== 'undefined' && !document.querySelector('script[data-career-fit-loader]')) {
+  const script = document.createElement('script');
+  script.src = 'career-fit.js';
+  script.defer = true;
+  script.dataset.careerFitLoader = '1';
+  document.head.appendChild(script);
+}
