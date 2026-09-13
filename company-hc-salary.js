@@ -125,12 +125,22 @@ window.COMPANY_HC_SALARY = {
   }
 };
 
-// Career Fit 是独立的候选人画像模块，不参与 S/A/B 或 Candidate Fit 计算。
-// 这里仅负责在现有静态入口加载该模块，避免改动评分引擎与主应用逻辑。
+// Career Fit V1.1 负责采集候选人画像；V1.2 personalization 在完成度>=60%时
+// 把职业方向价值与可明确对应的个人工作方式摩擦接入最终个性化推荐。
+// 两者都不改 Eligibility Gate、JD职责、专业语言、真实经历、Data Quality 或公司外部风险规则。
 if (typeof document !== 'undefined' && !document.querySelector('script[data-career-fit-loader]')) {
+  const loadPersonalization = () => {
+    if (document.querySelector('script[data-career-personalization-loader]')) return;
+    const p = document.createElement('script');
+    p.src = 'career-personalization.js';
+    p.defer = true;
+    p.dataset.careerPersonalizationLoader = '1';
+    document.head.appendChild(p);
+  };
   const script = document.createElement('script');
   script.src = 'career-fit.js';
   script.defer = true;
   script.dataset.careerFitLoader = '1';
+  script.addEventListener('load', loadPersonalization, {once:true});
   document.head.appendChild(script);
 }

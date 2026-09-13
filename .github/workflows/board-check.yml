@@ -9,6 +9,8 @@ on:
       - 'scoring.js'
       - 'career-fit.js'
       - 'career-fit.test.js'
+      - 'career-personalization.js'
+      - 'career-personalization.test.js'
       - 'company-hc-salary.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'audit-regression.cjs'
@@ -27,6 +29,8 @@ on:
       - 'scoring.js'
       - 'career-fit.js'
       - 'career-fit.test.js'
+      - 'career-personalization.js'
+      - 'career-personalization.test.js'
       - 'company-hc-salary.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'audit-regression.cjs'
@@ -58,7 +62,9 @@ jobs:
       - name: Check app syntax
         run: node --check app.js
       - name: Check Career Fit syntax
-        run: node --check career-fit.js
+        run: |
+          node --check career-fit.js
+          node --check career-personalization.js
       - name: Check calibration and intelligence audit syntax
         run: |
           node --check calibrate-v1.1.js
@@ -72,7 +78,9 @@ jobs:
           node scoring-v1.3-quality.test.js
           node scoring-v1.4-industry.test.js
       - name: Run Career Fit regression tests
-        run: node career-fit.test.js
+        run: |
+          node career-fit.test.js
+          node career-personalization.test.js
       - name: Calibrate against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
       - name: Audit S-A-B intelligence coverage
@@ -142,10 +150,14 @@ jobs:
           check "Maimai source guidance is present" grep -q '脉脉' "$WIRING_FILE"
           check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' "$WIRING_FILE"
           check "Career Fit module exists" test -s career-fit.js
+          check "Career personalization module exists" test -s career-personalization.js
           check "Career Fit loader is wired" grep -q "script.src = 'career-fit.js'" company-hc-salary.js
+          check "Career personalization loader is wired" grep -q "p.src = 'career-personalization.js'" company-hc-salary.js
           if grep -q 'CareerFit2027' scoring.js; then
-            echo "::error::Career Fit must not modify scoring engine"
+            echo "::error::base scoring engine must not depend on Career Fit"
             exit 1
           else
-            echo "PASS: Career Fit remains independent from scoring engine"
+            echo "PASS: base scoring engine remains independent from Career Fit"
           fi
+          check "personalization has 60 percent activation gate" grep -q 'MIN_COMPLETION=60' career-personalization.js
+          check "personalization preserves Gate" grep -q "if(!result.gate?.passed)return'不符合硬条件'" career-personalization.js
