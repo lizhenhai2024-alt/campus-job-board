@@ -29,9 +29,11 @@ const DISPLAY_LEVEL=l=>l==='S++'?'S':l;
 const fb=[{id:'fallback-1',company:'示例公司',title:'海外业务运营（2027届）',city:'深圳',graduationYear:'2027',roleFamily:['海外运营'],languages:['英语'],experienceKeywords:['海外业务','市场研究','客户信息'],preferenceTags:['国际业务','出海'],source:'回退示例',sourceType:'secondary',sourceUrl:'https://example.com/job',deadline:'2026-12-31',description:'实时岗位池不可用时的示例岗位，英语用于海外业务沟通。'}];
 
 let persisted={};try{persisted=JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('campus-job-board:original-restored')||localStorage.getItem('campus-job-board:v3')||'{}')}catch{}
-const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false,shortlist:false},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:20,showAllCompanyJobs:false,viewMode:(localStorage.getItem('campus-job-board:view-mode')==='job'?'job':'company'),list:{bucket:'全部',q:'',mtp:false},sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
+const S={tab:'jobs',jobs:[],mode:'loading',updated:'',meta:{},riskProfiles:[],companyMeta:{},filter:{q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false,shortlist:false,newToday:false},status:persisted.status||{},offerScores:persisted.offerScores||{},updatedAt:persisted.updatedAt||0,selected:null,limit:20,showAllCompanyJobs:false,viewMode:(localStorage.getItem('campus-job-board:view-mode')==='job'?'job':'company'),list:{bucket:'全部',q:'',mtp:false},sync:{secret:localStorage.getItem(SYNC_SECRET_KEY)||'',state:'idle',lastSyncedAt:null}};
 const app=document.getElementById('app');
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// 判断岗位是否今日新增（discoveredAt 本地时区今天）
+function isNewToday(v){if(!v)return false;const d=new Date(v);if(Number.isNaN(d.getTime()))return false;const n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();}
 const uniq=a=>[...new Set(a.filter(Boolean))];
 function save(){S.updatedAt=Date.now();localStorage.setItem(STORAGE,JSON.stringify({status:S.status,offerScores:S.offerScores,updatedAt:S.updatedAt}));pushRemote()}
 const levelClass=l=>l==='S++'||l==='S'?'s':l==='A'?'a':l==='B'?'b':l==='数据待修复'||l==='不符合硬条件'?'bad':'c';
@@ -189,7 +191,8 @@ function filtered(){
       &&(f.direction==='全部'||ev.direction===f.direction)
       &&(f.city==='全部'||j.city===f.city)
       &&(f.source==='全部'||src===f.source)
-      &&(master||f.quality==='全部'||ev.dataQuality.status===f.quality);
+      &&(master||f.quality==='全部'||ev.dataQuality.status===f.quality)
+      &&(!f.newToday||isNewToday(j.discoveredAt));
   });
 }
 
@@ -234,6 +237,7 @@ function jobCard(j, extraCount=0, applyUsed=0){
         ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
         ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
         ${watchFor(j)?`<span class="tag bad" title="${esc(watchFor(j))}">要注意</span>`:''}
+        ${isNewToday(j.discoveredAt)?`<span class="tag new" title="今日新增发现的岗位">今日新增</span>`:''}
         ${(()=>{const sl=isShortlistJob(j);return sl?`<span class="tag" style="background:#fff3e0;color:#e65100;border-color:#ffcc80" title="投递清单·${shortlistBucketLabel[sl.bucket]||sl.bucket}">清单·${shortlistBucketLabel[sl.bucket]||sl.bucket}</span>`:'';})()}
         ${extraChip}
       </div>
@@ -304,6 +308,7 @@ function companyCard(g, index, applyUsed=0){
           <span class="co-pri ${priCls}">优先 ${esc(v.priorityScore)}</span><span style="color:#999;margin-left:6px;font-size:12px">适配 ${esc(v.fit.score)}</span>
           <span>${g.jobs.length} 个可投岗位</span>
           <span>已投 ${applyUsed}/${COMPANY_JOB_CAP}</span>
+          ${g.jobs.some(j=>isNewToday(j.discoveredAt))?`<span class="tag new">今日新增</span>`:''}
           ${recPills}
           ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
           ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
@@ -320,7 +325,7 @@ function companyCard(g, index, applyUsed=0){
 
 /* ---- 机会看板页 ---- */
 function quickFilters(){
-  return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button><button class="chip ${S.filter.shortlist?'active':''}" data-qshortlist="1">只看清单</button>`
+  return`<span class="quick-label">快速筛选</span>${QUICK_LEVELS.map(v=>`<button class="chip ${S.filter.level===v?'active':''}" data-qlevel="${esc(v)}">${v==='全部'?'全部岗位':esc(v)}</button>`).join('')}<button class="chip official ${S.filter.source==='官方'?'active':''}" data-qofficial="1">只看官方</button><button class="chip ${S.filter.shortlist?'active':''}" data-qshortlist="1">只看清单</button><button class="chip new ${S.filter.newToday?'active':''}" data-qnewtoday="1">今日新增</button>`
 }
 function jobsPage(){
   const all=evaluated(), normal=normalJobs(), raw=filtered();
@@ -392,6 +397,7 @@ function jobsPage(){
       </div>
       <div class="hero-dirs"><span class="dir-title">目标方向</span><div class="dir-chips">${dirChips}</div></div>
     </div>
+    ${(()=>{const tN=normal.filter(j=>isNewToday(j.discoveredAt));const tC=uniq(tN.map(j=>companyKey(j.company))).length;return tN.length?`<div class="today-banner"><span class="today-badge">今日新增</span><span>岗位 <b>${tN.length}</b> 个 · 公司 <b>${tC}</b> 家</span><button class="chip new ${S.filter.newToday?'active':''}" data-qnewtoday="1">只看今日新增</button></div>`:'';})()}
     ${statBoxes([[normal.length,'本科可投岗位',''],[ss,'S 核心优先','s'],[a,'A级','a'],[uniq(normal.map(x=>x._evaluation.direction)).length,'覆盖方向',''],[partial,'待核岗位','warn'],[invalid,'数据待修复','bad']])}
   </div></section>
   <div class="console">
@@ -749,7 +755,7 @@ app.addEventListener('click',ev=>{
     if(ev.target.classList?.contains('drawer-bg')){S.selected=null;render();return}
     if(ev.target.closest('.drawer'))return;
   }
-  if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false,shortlist:false};render();return}
+  if(ev.target.id==='reset'){S.filter={q:'',degree:'本科',level:'全部',direction:'全部',city:'全部',source:'全部',quality:'全部',company:'',companyLabel:'',yingzhuan:false,shortlist:false,newToday:false};render();return}
   if(ev.target.id==='clear-company'){S.filter.company='';S.filter.companyLabel='';S.showAllCompanyJobs=false;render();return}
   const moreBtn=ev.target.closest('.hidden-more');
   if(moreBtn){
@@ -767,6 +773,7 @@ app.addEventListener('click',ev=>{
   const qlevel=ev.target.closest('[data-qlevel]')?.dataset.qlevel;if(qlevel!==undefined){S.filter.level=qlevel;render();return}
   if(ev.target.closest('[data-qofficial]')){S.filter.source=S.filter.source==='官方'?'全部':'官方';render();return}
   if(ev.target.closest('[data-qshortlist]')){S.filter.shortlist=!S.filter.shortlist;render();return}
+  if(ev.target.closest('[data-qnewtoday]')){S.filter.newToday=!S.filter.newToday;render();return}
   const listBucket=ev.target.closest('[data-list-bucket]')?.dataset.listBucket;
   if(listBucket!==undefined){S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.bucket=listBucket;render();return}
   if(ev.target.closest('[data-list-mtp]')){S.list=S.list||{bucket:'全部',q:'',mtp:false};S.list.mtp=!S.list.mtp;render();return}
