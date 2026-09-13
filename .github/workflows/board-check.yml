@@ -143,4 +143,9 @@ jobs:
           check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' "$WIRING_FILE"
           check "Career Fit module exists" test -s career-fit.js
           check "Career Fit loader is wired" grep -q "script.src = 'career-fit.js'" company-hc-salary.js
-          check "Career Fit does not modify scoring engine" '! grep -q "CareerFit2027" scoring.js'
+          if grep -q 'CareerFit2027' scoring.js; then
+            echo "::error::Career Fit must not modify scoring engine"
+            exit 1
+          else
+            echo "PASS: Career Fit remains independent from scoring engine"
+          fi
