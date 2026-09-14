@@ -7,6 +7,7 @@
   const TOP_JOBS_URL='/api/jobs?limit=100';
   const APP_CORE_URL='/app-core.js';
   const MAX_JOBS=100;
+  const TOP_JOBS_TIMEOUT_MS=2500;
 
   function showLoading(root,text='正在打开精选岗位…'){
     const app=root.document.getElementById('app');
@@ -56,16 +57,7 @@
     return()=>{root.fetch=baseFetch;};
   }
 
-  function replaceAppRoot(root){
-    const old=root.document.getElementById('app');
-    if(!old)return null;
-    const fresh=old.cloneNode(false);
-    old.replaceWith(fresh);
-    return fresh;
-  }
-
-  function loadCore(root,{replaceRoot=false,stage='full'}={}){
-    if(replaceRoot)replaceAppRoot(root);
+  function loadCore(root,{stage='full'}={}){
     return new Promise((resolve,reject)=>{
       const script=root.document.createElement('script');
       script.src=APP_CORE_URL;
@@ -95,66 +87,50 @@
     return jobs.length;
   }
 
-  function waitForBoardReady(root,timeout=1800){
-    const start=Date.now();
-    return new Promise(resolve=>{
-      const poll=()=>{
-        const ready=root.document.querySelector('.hero,.company-grid,.list,.summary,.topbar');
-        if(ready||Date.now()-start>=timeout)return resolve(Boolean(ready));
-        root.setTimeout(poll,25);
-      };
-      poll();
-    });
-  }
-
-  function nextPaint(root){
-    if(typeof root.requestAnimationFrame!=='function')return Promise.resolve();
-    return new Promise(resolve=>root.requestAnimationFrame(()=>root.requestAnimationFrame(resolve)));
-  }
-
-  async function start(root){
-    root.BOARD_TOP100_ONLY=true;
-    const nativeFetch=root.fetch.bind(root);
-    const topJobsPromise=nativeFetch(TOP_JOBS_URL,{cache:'no-store'})
+  function fetchTopJobs(root,nativeFetch,timeoutMs=TOP_JOBS_TIMEOUT_MS){
+    const controller=typeof root.AbortController==='function'?new root.AbortController():null;
+    let timer=null;
+    if(controller&&timeoutMs>0){
+      timer=root.setTimeout(()=>controller.abort(),timeoutMs);
+    }
+    return nativeFetch(TOP_JOBS_URL,{cache:'force-cache',signal:controller?controller.signal:undefined})
       .then(async res=>{
         if(!res.ok)throw new Error(`top100 ${res.status}`);
         const payload=await res.json();
         if(!Array.isArray(payload.jobs)||!payload.jobs.length)throw new Error('top100 payload missing');
         return payload;
-      });
-    installTop100FetchGuard(root,topJobsPromise,nativeFetch);
+      })
+      .finally(()=>{if(timer!==null)root.clearTimeout(timer);});
+  }
 
+  async function start(root){
+    root.BOARD_TOP100_ONLY=true;
+    const nativeFetch=root.fetch.bind(root);
     const bootstrapCount=prepareBootstrap(root);
-    let bootstrapCore=Promise.resolve();
-    if(bootstrapCount){
-      showLoading(root,`正在打开 ${bootstrapCount} 个精选岗位，最多加载前 ${MAX_JOBS} 个岗位…`);
-      bootstrapCore=loadCore(root,{stage:'bootstrap'});
-    }else{
-      showLoading(root,`正在读取前 ${MAX_JOBS} 个岗位…`);
-    }
+    showLoading(root,bootstrapCount
+      ?`正在读取最新岗位；网络较慢时将直接打开 ${bootstrapCount} 个精选岗位…`
+      :`正在读取前 ${MAX_JOBS} 个岗位…`);
+
+    const topJobsPromise=fetchTopJobs(root,nativeFetch);
+    installTop100FetchGuard(root,topJobsPromise,nativeFetch);
 
     try{
       const payload=await topJobsPromise;
-      await bootstrapCore;
-      if(bootstrapCount){
-        await waitForBoardReady(root);
-        await nextPaint(root);
-      }
       const jobs=composeTopJobs(payload.jobs,root.YINGZHUAN_JOBS,MAX_JOBS);
       root.EMBEDDED_JOBS=jobs;
       root.EMBEDDED_META=Object.assign({},payload.meta||{},{source:'top100-api',total:jobs.length,limit:MAX_JOBS,top100Only:true});
       root.EMBEDDED_RISK=[[],[]];
       root.EMBEDDED_COMPANY_META={};
-      await loadCore(root,{replaceRoot:Boolean(bootstrapCount),stage:'top100'});
+      await loadCore(root,{stage:'top100'});
     }catch(err){
-      console.warn('Top-100 jobs unavailable; keeping curated bootstrap only.',err);
+      console.warn('Top-100 jobs unavailable or slow; using curated bootstrap.',err);
       if(bootstrapCount){
-        try{await bootstrapCore;}catch(coreErr){console.error(coreErr);}
+        await loadCore(root,{stage:'bootstrap'});
         return;
       }
       showLoading(root,'前100岗位暂时不可用，请刷新页面重试。');
     }
   }
 
-  return {start,composeTopJobs,isLiveJobsUrl,moduleTextForTopJobs,prepareBootstrap};
+  return {start,composeTopJobs,isLiveJobsUrl,moduleTextForTopJobs,prepareBootstrap,fetchTopJobs};
 });
