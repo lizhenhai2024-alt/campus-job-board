@@ -1,32 +1,32 @@
 const assert=require('assert');
 const loader=require('./app.js');
 
-const target={};
-const jobs=[{id:'j1',company:'A',title:'海外运营'}];
-const risk=[[{id:'r1',company:'A'}],[{id:'r2',company:'B'}]];
-const html=`<!doctype html><script>window.EMBEDDED_JOBS=${JSON.stringify(jobs)};window.EMBEDDED_META={updatedAt:'2026-09-14T00:00:00.000Z'};window.EMBEDDED_RISK=${JSON.stringify(risk)};window.EMBEDDED_COMPANY_META={A:{fullName:'公司A'}};</script>`;
+const many=Array.from({length:140},(_,i)=>({id:`j${i+1}`,company:`公司${i+1}`,title:`岗位${i+1}`}));
+const curated=[{id:'c1',company:'精选A',title:'海外运营'},{id:'c2',company:'精选B',title:'GTM'}];
+const top=loader.composeTopJobs(many,curated,100);
+assert.strictEqual(top.length,100,'board must cap jobs at 100');
+assert.strictEqual(top[0].id,'c1','curated jobs stay first');
+assert.strictEqual(top[1].id,'c2','curated jobs stay first');
 
-assert.strictEqual(loader.applySnapshot(html,target),true,'snapshot payload should be applied');
-assert.deepStrictEqual(target.EMBEDDED_JOBS,jobs);
-assert.deepStrictEqual(target.EMBEDDED_RISK,risk);
-assert.strictEqual(target.EMBEDDED_COMPANY_META.A.fullName,'公司A');
+const dedup=loader.composeTopJobs([{id:'x2',company:'A',title:'海外 运营'}],[{id:'x1',company:'A',title:'海外运营'}],100);
+assert.strictEqual(dedup.length,1,'same company/title should be de-duplicated');
 
-const priority=loader.riskModuleForUrl('https://example.com/company-risk-history-priority.js',risk);
-assert(priority.includes('priorityCompanyRiskHistory'));
-assert(priority.includes('r2'));
-const normal=loader.riskModuleForUrl('https://example.com/company-risk-history.js',risk);
-assert(normal.includes('companyRiskHistory'));
-assert(normal.includes('r1'));
-assert.strictEqual(loader.riskModuleForUrl('https://example.com/live-jobs.js',risk),null);
+assert.strictEqual(loader.isLiveJobsUrl('https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/live-jobs.js'),true);
+assert.strictEqual(loader.isLiveJobsUrl('https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/live-jobs.js'),true);
+assert.strictEqual(loader.isLiveJobsUrl('/api/jobs?limit=100'),false);
+
+const moduleText=loader.moduleTextForTopJobs({jobs:many,meta:{source:'test'}},curated);
+assert(moduleText.includes('export const liveJobs='));
+assert(moduleText.includes('"top100Only":true'));
+assert(moduleText.includes('"count":100'));
 
 const bootstrapRoot={
-  YINGZHUAN_JOBS:[{id:'y1'},{id:'y2'}],
+  YINGZHUAN_JOBS:Array.from({length:120},(_,i)=>({id:`y${i}`,company:`Y${i}`,title:`T${i}`})),
   YINGZHUAN_META:{A:{fullName:'公司A'}}
 };
-assert.strictEqual(loader.prepareBootstrap(bootstrapRoot),2);
-assert.strictEqual(bootstrapRoot.EMBEDDED_JOBS.length,2);
-assert.strictEqual(bootstrapRoot.EMBEDDED_META.bootstrap,true);
-assert.deepStrictEqual(bootstrapRoot.EMBEDDED_RISK,[[],[]]);
-assert.strictEqual(bootstrapRoot.EMBEDDED_COMPANY_META.A.fullName,'公司A');
+assert.strictEqual(loader.prepareBootstrap(bootstrapRoot),100);
+assert.strictEqual(bootstrapRoot.EMBEDDED_JOBS.length,100);
+assert.strictEqual(bootstrapRoot.EMBEDDED_META.top100Only,true);
+assert.strictEqual(bootstrapRoot.EMBEDDED_META.limit,100);
 
-console.log('PASS app progressive loader');
+console.log('PASS top-100 app loader');
