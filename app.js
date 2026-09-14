@@ -4,8 +4,9 @@
   if(root&&root.document) api.start(root);
 })(typeof window!=='undefined'?window:null,()=>{
   'use strict';
-  const SNAPSHOT_URL='/data/snapshot-e316bc7.html';
+  const TOP_JOBS_URL='/api/jobs?limit=100';
   const APP_CORE_URL='/app-core.js';
+  const MAX_JOBS=100;
 
   function showLoading(root,text='正在打开精选岗位…'){
     const app=root.document.getElementById('app');
@@ -13,39 +14,46 @@
     app.innerHTML=`<div style="max-width:1220px;margin:28px auto;padding:0 24px"><div style="background:#fff;border:1px solid #E2E7EF;border-radius:14px;padding:18px 20px;font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;color:#33435C"><b style="color:#0B1B33">2027届校招机会看板</b><br>${text}</div></div>`;
   }
 
-  function applySnapshot(html,target){
-    const scripts=[...String(html||'').matchAll(/<script>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
-    let applied=0;
-    for(const code of scripts){
-      if(!/window\.EMBEDDED_(JOBS|META|RISK|COMPANY_META)/.test(code))continue;
-      new Function('window',code)(target);
-      applied+=1;
-    }
-    return applied>0&&Array.isArray(target.EMBEDDED_JOBS)&&target.EMBEDDED_JOBS.length>0;
+  function jobKey(job){
+    return `${String(job&&job.company||'').trim().toLowerCase()}|${String(job&&job.title||'').replace(/\s+/g,'').toLowerCase()}`;
   }
 
-  function riskModuleForUrl(url,risk){
-    if(!Array.isArray(risk))return null;
+  function composeTopJobs(jobs,curated=[],limit=MAX_JOBS){
+    const out=[],seen=new Set();
+    for(const job of [...(Array.isArray(curated)?curated:[]),...(Array.isArray(jobs)?jobs:[])]){
+      if(!job)continue;
+      const key=jobKey(job)||String(job.id||'');
+      if(key&&seen.has(key))continue;
+      if(key)seen.add(key);
+      out.push(job);
+      if(out.length>=limit)break;
+    }
+    return out;
+  }
+
+  function isLiveJobsUrl(url){
     const text=String(url||'');
-    if(text.includes('company-risk-history-priority.js')){
-      return `export const priorityCompanyRiskHistory=${JSON.stringify(Array.isArray(risk[1])?risk[1]:[])};`;
-    }
-    if(text.includes('company-risk-history.js')){
-      return `export const companyRiskHistory=${JSON.stringify(Array.isArray(risk[0])?risk[0]:[])};`;
-    }
-    return null;
+    return text.includes('/AI_Job/')&&text.includes('/src/data/live-jobs.js')||text.includes('cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job')&&text.includes('/src/data/live-jobs.js');
   }
 
-  function installEmbeddedRiskFetch(root,risk){
-    if(!Array.isArray(risk)||typeof root.fetch!=='function')return()=>{};
-    const nativeFetch=root.fetch.bind(root);
+  function moduleTextForTopJobs(payload,curated=[]){
+    const jobs=composeTopJobs(payload&&payload.jobs,curated,MAX_JOBS);
+    const meta=Object.assign({},payload&&payload.meta||{},{limit:MAX_JOBS,count:jobs.length,top100Only:true});
+    return `export const liveJobs=${JSON.stringify(jobs)};\nexport const meta=${JSON.stringify(meta)};`;
+  }
+
+  function installTop100FetchGuard(root,topJobsPromise,nativeFetch){
+    if(typeof root.fetch!=='function')return()=>{};
+    const baseFetch=nativeFetch||root.fetch.bind(root);
     root.fetch=(input,init)=>{
       const url=typeof input==='string'?input:(input&&input.url)||'';
-      const moduleText=riskModuleForUrl(url,risk);
-      if(moduleText===null)return nativeFetch(input,init);
-      return Promise.resolve(new root.Response(moduleText,{status:200,headers:{'content-type':'text/javascript; charset=utf-8','x-board-source':'embedded-risk'}}));
+      if(!isLiveJobsUrl(url))return baseFetch(input,init);
+      return topJobsPromise.then(payload=>new root.Response(moduleTextForTopJobs(payload,root.YINGZHUAN_JOBS),{
+        status:200,
+        headers:{'content-type':'text/javascript; charset=utf-8','x-board-source':'top100-guard'}
+      }));
     };
-    return()=>{root.fetch=nativeFetch;};
+    return()=>{root.fetch=baseFetch;};
   }
 
   function replaceAppRoot(root){
@@ -56,29 +64,30 @@
     return fresh;
   }
 
-  function loadCore(root,{replaceRoot=false,risk=null,stage='full'}={}){
+  function loadCore(root,{replaceRoot=false,stage='full'}={}){
     if(replaceRoot)replaceAppRoot(root);
-    const restoreFetch=installEmbeddedRiskFetch(root,risk);
     return new Promise((resolve,reject)=>{
       const script=root.document.createElement('script');
       script.src=APP_CORE_URL;
       script.async=false;
       script.dataset.boardCoreStage=stage;
-      script.onload=()=>{restoreFetch();resolve();};
-      script.onerror=()=>{restoreFetch();reject(new Error(`core script failed: ${stage}`));};
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error(`core script failed: ${stage}`));
       root.document.body.appendChild(script);
     });
   }
 
   function prepareBootstrap(root){
-    const jobs=Array.isArray(root.YINGZHUAN_JOBS)?root.YINGZHUAN_JOBS.filter(Boolean):[];
+    const jobs=composeTopJobs([],root.YINGZHUAN_JOBS,MAX_JOBS);
     if(!jobs.length)return 0;
-    root.EMBEDDED_JOBS=jobs.slice();
+    root.EMBEDDED_JOBS=jobs;
     root.EMBEDDED_META={
       updatedAt:new Date().toISOString(),
-      source:'progressive-bootstrap',
+      source:'curated-bootstrap',
       total:jobs.length,
-      bootstrap:true
+      limit:MAX_JOBS,
+      bootstrap:true,
+      top100Only:true
     };
     root.EMBEDDED_RISK=[[],[]];
     const meta=root.YINGZHUAN_META&&typeof root.YINGZHUAN_META==='object'?root.YINGZHUAN_META:{};
@@ -104,41 +113,48 @@
   }
 
   async function start(root){
-    const snapshotPromise=root.fetch(SNAPSHOT_URL,{cache:'force-cache'})
-      .then(res=>{if(!res.ok)throw new Error(`snapshot ${res.status}`);return res.text();});
+    root.BOARD_TOP100_ONLY=true;
+    const nativeFetch=root.fetch.bind(root);
+    const topJobsPromise=nativeFetch(TOP_JOBS_URL,{cache:'no-store'})
+      .then(async res=>{
+        if(!res.ok)throw new Error(`top100 ${res.status}`);
+        const payload=await res.json();
+        if(!Array.isArray(payload.jobs)||!payload.jobs.length)throw new Error('top100 payload missing');
+        return payload;
+      });
+    installTop100FetchGuard(root,topJobsPromise,nativeFetch);
 
     const bootstrapCount=prepareBootstrap(root);
     let bootstrapCore=Promise.resolve();
     if(bootstrapCount){
-      showLoading(root,`正在打开 ${bootstrapCount} 个英专精选岗位，完整岗位池在后台加载…`);
-      bootstrapCore=loadCore(root,{risk:[[],[]],stage:'bootstrap'});
+      showLoading(root,`正在打开 ${bootstrapCount} 个精选岗位，最多加载前 ${MAX_JOBS} 个岗位…`);
+      bootstrapCore=loadCore(root,{stage:'bootstrap'});
     }else{
-      showLoading(root,'正在读取完整岗位快照…');
+      showLoading(root,`正在读取前 ${MAX_JOBS} 个岗位…`);
     }
 
     try{
-      const html=await snapshotPromise;
+      const payload=await topJobsPromise;
       await bootstrapCore;
       if(bootstrapCount){
         await waitForBoardReady(root);
         await nextPaint(root);
       }
-      if(!applySnapshot(html,root))throw new Error('snapshot payload missing');
-      const fullRisk=Array.isArray(root.EMBEDDED_RISK)?root.EMBEDDED_RISK:[[],[]];
-      await loadCore(root,{replaceRoot:Boolean(bootstrapCount),risk:fullRisk,stage:'full'});
+      const jobs=composeTopJobs(payload.jobs,root.YINGZHUAN_JOBS,MAX_JOBS);
+      root.EMBEDDED_JOBS=jobs;
+      root.EMBEDDED_META=Object.assign({},payload.meta||{},{source:'top100-api',total:jobs.length,limit:MAX_JOBS,top100Only:true});
+      root.EMBEDDED_RISK=[[],[]];
+      root.EMBEDDED_COMPANY_META={};
+      await loadCore(root,{replaceRoot:Boolean(bootstrapCount),stage:'top100'});
     }catch(err){
-      console.warn('Progressive same-origin snapshot unavailable; keeping fast bootstrap/falling back to remote sources.',err);
+      console.warn('Top-100 jobs unavailable; keeping curated bootstrap only.',err);
       if(bootstrapCount){
         try{await bootstrapCore;}catch(coreErr){console.error(coreErr);}
         return;
       }
-      showLoading(root,'同源岗位快照暂不可用，正在切换备用数据源…');
-      try{await loadCore(root,{stage:'remote-fallback'});}catch(coreErr){
-        console.error(coreErr);
-        showLoading(root,'岗位数据暂时不可用，请刷新页面重试。');
-      }
+      showLoading(root,'前100岗位暂时不可用，请刷新页面重试。');
     }
   }
 
-  return {start,applySnapshot,riskModuleForUrl,prepareBootstrap};
+  return {start,composeTopJobs,isLiveJobsUrl,moduleTextForTopJobs,prepareBootstrap};
 });
