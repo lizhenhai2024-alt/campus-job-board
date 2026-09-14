@@ -143,6 +143,10 @@ function riskFor(company){return S.riskProfiles.find(p=>sameCompany(p.company,co
 const COMPANY_META_SOURCES=[{exportName:'companyMeta',urls:['https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-meta.js','https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-meta.js']}];
 async function loadCompanyMeta(){
   const extra=window.YINGZHUAN_META||{};
+  // 内嵌公司元数据优先（秒开），外部源仅在没有内嵌时拉取
+  if(window.EMBEDDED_COMPANY_META && Object.keys(window.EMBEDDED_COMPANY_META).length){
+    return Object.assign({}, window.EMBEDDED_COMPANY_META, extra);
+  }
   for(const source of COMPANY_META_SOURCES){
     let blobUrl='';
     try{
@@ -679,9 +683,23 @@ function render(){const body=S.tab==='jobs'?jobsPage():S.tab==='list'?listPage()
 function parseModule(raw){const a=raw.search(/export\s+const\s+liveJobs\s*=/),s=raw.indexOf('[',a),m=raw.search(/export\s+const\s+discoveryMeta/),segment=raw.slice(s,m<0?raw.length:m),end=segment.lastIndexOf(']');if(a<0||s<0||end<0)throw Error('岗位池格式异常');const jobs=JSON.parse(segment.slice(0,end+1));let meta={};if(m>=0){const ms=raw.indexOf('{',m),me=raw.lastIndexOf('}');if(ms>0&&me>ms)try{meta=JSON.parse(raw.slice(ms,me+1))}catch{}}return{jobs,meta}}
 async function fetchText(url){const c=new AbortController(),timer=setTimeout(()=>c.abort(),9000);try{const res=await fetch(url,{cache:'no-store',signal:c.signal});if(!res.ok)throw Error(String(res.status));return await res.text();}finally{clearTimeout(timer)}}
 async function loadJobsAndMeta(){
+  // 优先内嵌快照秒开；有快照时后台异步刷新外部源（不阻塞渲染）
+  if(EMBEDDED_JOBS.length){
+    refreshLiveData();
+    return{jobs:mergeYingzhuan(EMBEDDED_JOBS),meta:EMBEDDED_META,mode:'snapshot'};
+  }
   for(const url of DATA_URLS){try{const {jobs,meta}=parseModule(await fetchText(url));if(!jobs.length)throw Error('empty');return{jobs:mergeYingzhuan(jobs),meta,mode:'live'}}catch(err){console.warn('[board data]',err)}}
-  if(EMBEDDED_JOBS.length) return{jobs:mergeYingzhuan(EMBEDDED_JOBS),meta:EMBEDDED_META,mode:'snapshot'};
   return{jobs:mergeYingzhuan(fb),meta:{updatedAt:'',source:'内置示例'},mode:'fallback'};
+}
+let liveTimer=null;
+async function refreshLiveData(){
+  if(liveTimer) return;
+  liveTimer=setTimeout(async()=>{
+    try{
+      for(const url of DATA_URLS){try{const {jobs,meta}=parseModule(await fetchText(url));if(!jobs.length)throw Error('empty');S.jobs=mergeYingzhuan(jobs);S.meta=meta;S.mode='live';S.updated=meta.updatedAt||jobs[0]?.discoveredAt||'';render();return}catch(err){console.warn('[board refresh]',err)}}
+    }catch(e){console.warn('[board refresh fail]',e)}
+    finally{liveTimer=null}
+  },1200);
 }
 async function loadRiskSet(source){
   for(const url of source.urls){let blobUrl='';try{const raw=await fetchText(url);blobUrl=URL.createObjectURL(new Blob([raw],{type:'text/javascript'}));const mod=await import(blobUrl);const rows=mod[source.exportName];return Array.isArray(rows)?rows:[]}catch(e){console.warn(`[risk ${source.exportName}]`,e)}finally{if(blobUrl)URL.revokeObjectURL(blobUrl)}}
