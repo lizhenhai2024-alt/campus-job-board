@@ -1,4 +1,5 @@
 const assert=require('assert');
+const fs=require('fs');
 const loader=require('./app.js');
 
 const many=Array.from({length:140},(_,i)=>({id:`j${i+1}`,company:`公司${i+1}`,title:`岗位${i+1}`}));
@@ -29,4 +30,25 @@ assert.strictEqual(bootstrapRoot.EMBEDDED_JOBS.length,100);
 assert.strictEqual(bootstrapRoot.EMBEDDED_META.top100Only,true);
 assert.strictEqual(bootstrapRoot.EMBEDDED_META.limit,100);
 
-console.log('PASS top-100 app loader');
+(async()=>{
+  let optionsSeen=null;
+  const root={
+    AbortController:global.AbortController,
+    setTimeout,
+    clearTimeout
+  };
+  const payload=await loader.fetchTopJobs(root,async(url,options)=>{
+    optionsSeen={url,options};
+    return {ok:true,json:async()=>({jobs:[{id:'1',company:'A',title:'B'}]})};
+  },1000);
+  assert.strictEqual(payload.jobs.length,1);
+  assert.strictEqual(optionsSeen.url,'/api/jobs?limit=100');
+  assert.strictEqual(optionsSeen.options.cache,'force-cache','top-100 endpoint should allow browser/CDN cache reuse');
+
+  const source=fs.readFileSync('./app.js','utf8');
+  assert(!source.includes('bootstrapCore=loadCore'),'app core must not render bootstrap and top100 twice');
+  assert(!source.includes('replaceRoot:Boolean(bootstrapCount)'),'first load must not tear down and rebuild the board');
+  assert(source.includes("await loadCore(root,{stage:'top100'})"),'top100 path should render core exactly once');
+  assert(source.includes("await loadCore(root,{stage:'bootstrap'})"),'bootstrap should only be a fallback render');
+  console.log('PASS top-100 app loader');
+})().catch(err=>{console.error(err);process.exitCode=1;});
