@@ -11,10 +11,6 @@ on:
       - 'data/**'
       - 'vercel.json'
       - 'scoring.js'
-      - 'career-fit.js'
-      - 'career-fit.test.js'
-      - 'career-personalization.js'
-      - 'career-personalization.test.js'
       - 'company-hc-salary.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'audit-regression.cjs'
@@ -35,10 +31,6 @@ on:
       - 'data/**'
       - 'vercel.json'
       - 'scoring.js'
-      - 'career-fit.js'
-      - 'career-fit.test.js'
-      - 'career-personalization.js'
-      - 'career-personalization.test.js'
       - 'company-hc-salary.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'audit-regression.cjs'
@@ -74,10 +66,6 @@ jobs:
           node --check app-loader.test.cjs
       - name: Run progressive loader tests
         run: node app-loader.test.cjs
-      - name: Check Career Fit syntax
-        run: |
-          node --check career-fit.js
-          node --check career-personalization.js
       - name: Check calibration and intelligence audit syntax
         run: |
           node --check calibrate-v1.1.js
@@ -90,10 +78,6 @@ jobs:
           node scoring-v1.2.test.js
           node scoring-v1.3-quality.test.js
           node scoring-v1.4-industry.test.js
-      - name: Run Career Fit regression tests
-        run: |
-          node career-fit.test.js
-          node career-personalization.test.js
       - name: Calibrate against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
       - name: Audit S-A-B intelligence coverage
@@ -171,15 +155,15 @@ jobs:
           check "Nowcoder source guidance is present" grep -q '牛客' "$WIRING_FILE"
           check "Maimai source guidance is present" grep -q '脉脉' "$WIRING_FILE"
           check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' "$WIRING_FILE"
-          check "Career Fit module exists" test -s career-fit.js
-          check "Career personalization module exists" test -s career-personalization.js
-          check "Career Fit loader is wired" grep -q "script.src = 'career-fit.js'" company-hc-salary.js
-          check "Career personalization loader is wired" grep -q "p.src = 'career-personalization.js'" company-hc-salary.js
           if grep -q 'CareerFit2027' scoring.js; then
             echo "::error::base scoring engine must not depend on Career Fit"
             exit 1
           else
             echo "PASS: base scoring engine remains independent from Career Fit"
           fi
-          check "personalization has 60 percent activation gate" grep -q 'MIN_COMPLETION=60' career-personalization.js
-          check "personalization preserves Gate" grep -q "if(!result.gate?.passed)return'不符合硬条件'" career-personalization.js
+          if grep -q "career-fit.js\|career-personalization.js" company-hc-salary.js; then
+            echo "::error::career assessment runtime must stay outside campus-job-board"
+            exit 1
+          else
+            echo "PASS: career assessment runtime is detached"
+          fi
