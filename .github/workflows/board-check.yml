@@ -7,6 +7,7 @@ on:
       - 'index.html'
       - 'app.js'
       - 'app-core.js'
+      - 'app-loader.test.cjs'
       - 'data/**'
       - 'vercel.json'
       - 'scoring.js'
@@ -30,6 +31,7 @@ on:
       - 'index.html'
       - 'app.js'
       - 'app-core.js'
+      - 'app-loader.test.cjs'
       - 'data/**'
       - 'vercel.json'
       - 'scoring.js'
@@ -69,6 +71,9 @@ jobs:
         run: |
           node --check app.js
           node --check app-core.js
+          node --check app-loader.test.cjs
+      - name: Run progressive loader tests
+        run: node app-loader.test.cjs
       - name: Check Career Fit syntax
         run: |
           node --check career-fit.js
@@ -136,9 +141,13 @@ jobs:
           check "index.html is non-empty" test -s index.html
           check "app bootstrap is non-empty" test -s app.js
           check "app core is non-empty" test -s app-core.js
+          check "progressive loader test exists" test -s app-loader.test.cjs
           check "versioned snapshot exists" bash -c "find data -maxdepth 1 -type f -name 'snapshot-*.html' -size +0c | grep -q ."
           check "bootstrap references same-origin snapshot" grep -q "SNAPSHOT_URL='/data/snapshot-" app.js
           check "bootstrap references app core" grep -q "APP_CORE_URL='/app-core.js'" app.js
+          check "bootstrap uses curated jobs immediately" grep -q 'YINGZHUAN_JOBS' app.js
+          check "bootstrap has full snapshot handoff" grep -q "stage:'full'" app.js
+          check "embedded risk is locally consumable" grep -q 'riskModuleForUrl' app.js
           if grep -Eq '<script[^>]+scoring-v1\.1\.js' index.html; then
             echo "::error::legacy scoring-v1.1.js must not be wired in production"
             exit 1
