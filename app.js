@@ -4,8 +4,8 @@
   if(root&&root.document) api.start(root);
 })(typeof window!=='undefined'?window:null,()=>{
   'use strict';
-  const SNAPSHOT_URL='data/snapshot-e316bc7.html';
-  const CORE_URL='app-core.js';
+  const SNAPSHOT_URL='/data/snapshot-e316bc7.html';
+  const APP_CORE_URL='/app-core.js';
 
   function showLoading(root,text='正在打开精选岗位…'){
     const app=root.document.getElementById('app');
@@ -61,7 +61,7 @@
     const restoreFetch=installEmbeddedRiskFetch(root,risk);
     return new Promise((resolve,reject)=>{
       const script=root.document.createElement('script');
-      script.src=CORE_URL;
+      script.src=APP_CORE_URL;
       script.async=false;
       script.dataset.boardCoreStage=stage;
       script.onload=()=>{restoreFetch();resolve();};
