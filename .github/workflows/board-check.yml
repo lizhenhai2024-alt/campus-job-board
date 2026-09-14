@@ -15,6 +15,10 @@ on:
       - 'vercel.json'
       - 'scoring.js'
       - 'company-hc-salary.js'
+      - 'career-fit.js'
+      - 'career-personalization.js'
+      - 'career-fit.test.js'
+      - 'career-personalization.test.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'audit-regression.cjs'
       - 'scoring-v1.1.test.js'
@@ -38,6 +42,10 @@ on:
       - 'vercel.json'
       - 'scoring.js'
       - 'company-hc-salary.js'
+      - 'career-fit.js'
+      - 'career-personalization.js'
+      - 'career-fit.test.js'
+      - 'career-personalization.test.js'
       - 'audit-intelligence-v1.3.cjs'
       - 'audit-regression.cjs'
       - 'scoring-v1.1.test.js'
@@ -65,17 +73,23 @@ jobs:
           node-version: 24
       - name: Check scoring syntax
         run: node --check scoring.js
-      - name: Check app and API syntax
+      - name: Check app, API and Career Fit syntax
         run: |
           node --check app.js
           node --check app-core.js
           node --check app-loader.test.cjs
           node --check api/jobs.js
           node --check api/jobs.test.cjs
+          node --check career-fit.js
+          node --check career-personalization.js
       - name: Run top-100 loading tests
         run: |
           node app-loader.test.cjs
           node api/jobs.test.cjs
+      - name: Run Career Fit regression tests
+        run: |
+          node career-fit.test.js
+          node career-personalization.test.js
       - name: Check calibration and intelligence audit syntax
         run: |
           node --check calibrate-v1.1.js
@@ -144,6 +158,8 @@ jobs:
           if grep -q 'CareerFit2027' scoring.js; then
             echo "::error::base scoring engine must not depend on Career Fit"; exit 1
           else echo "PASS: base scoring engine remains independent from Career Fit"; fi
-          if grep -q "career-fit.js\|career-personalization.js" company-hc-salary.js; then
-            echo "::error::career assessment runtime must stay outside campus-job-board"; exit 1
-          else echo "PASS: career assessment runtime is detached"; fi
+          check "Career Fit runtime exists" test -s career-fit.js
+          check "Career personalization runtime exists" test -s career-personalization.js
+          check "Career Fit loader is wired" grep -q "script.src = 'career-fit.js'" company-hc-salary.js
+          check "Career personalization loader is wired" grep -q "p.src = 'career-personalization.js'" company-hc-salary.js
+          check "personalization uses 60 percent activation gate" grep -q 'MIN_COMPLETION=60' career-personalization.js
