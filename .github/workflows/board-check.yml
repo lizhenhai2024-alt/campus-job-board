@@ -6,6 +6,9 @@ on:
     paths:
       - 'index.html'
       - 'app.js'
+      - 'app-core.js'
+      - 'data/**'
+      - 'vercel.json'
       - 'scoring.js'
       - 'career-fit.js'
       - 'career-fit.test.js'
@@ -26,6 +29,9 @@ on:
     paths:
       - 'index.html'
       - 'app.js'
+      - 'app-core.js'
+      - 'data/**'
+      - 'vercel.json'
       - 'scoring.js'
       - 'career-fit.js'
       - 'career-fit.test.js'
@@ -60,7 +66,9 @@ jobs:
       - name: Check scoring syntax
         run: node --check scoring.js
       - name: Check app syntax
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check app-core.js
       - name: Check Career Fit syntax
         run: |
           node --check career-fit.js
@@ -126,6 +134,11 @@ jobs:
             fi
           }
           check "index.html is non-empty" test -s index.html
+          check "app bootstrap is non-empty" test -s app.js
+          check "app core is non-empty" test -s app-core.js
+          check "versioned snapshot exists" bash -c "find data -maxdepth 1 -type f -name 'snapshot-*.html' -size +0c | grep -q ."
+          check "bootstrap references same-origin snapshot" grep -q "SNAPSHOT_URL='/data/snapshot-" app.js
+          check "bootstrap references app core" grep -q "APP_CORE_URL='/app-core.js'" app.js
           if grep -Eq '<script[^>]+scoring-v1\.1\.js' index.html; then
             echo "::error::legacy scoring-v1.1.js must not be wired in production"
             exit 1
@@ -133,8 +146,8 @@ jobs:
             echo "PASS: legacy scoring-v1.1.js is not wired"
           fi
           if grep -q 'scoring.js' index.html && grep -q 'app.js' index.html; then
-            echo "PASS: index loads scoring.js and app.js"
-            WIRING_FILE=app.js
+            echo "PASS: index loads scoring.js and app bootstrap"
+            WIRING_FILE=app-core.js
           elif grep -q 'CampusScoring' index.html && grep -q 'parseModule' index.html; then
             echo "PASS: index inlines CampusScoring and live job loader"
             WIRING_FILE=index.html
