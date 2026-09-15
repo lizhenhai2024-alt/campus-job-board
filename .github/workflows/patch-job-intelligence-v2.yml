@@ -1,0 +1,52 @@
+name: Patch job intelligence v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-job-intelligence-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply patch
+        run: python scripts/patch-job-intelligence-v2.py
+      - name: Syntax and regression checks
+        run: |
+          node --check app-core.js
+          node --check audit-intelligence-v1.3.cjs
+          node app-loader.test.cjs
+          node api/jobs.test.cjs
+          node career-fit.test.js
+          node career-personalization.test.js
+          node scoring-v1.2.test.js
+          node scoring-v1.3-quality.test.js
+          node scoring-v1.4-industry.test.js
+      - name: Commit production changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app-core.js company-hc-salary.js audit-intelligence-v1.3.cjs 情报层规则_岗位薪资与公司风险_V1.3.md
+          if git diff --cached --quiet; then
+            echo "No production changes to commit."
+            exit 0
+          fi
+          git commit -m "feat: show publication HC and salary intelligence"
+          git pull --rebase origin main
+          git push origin main
