@@ -6,8 +6,9 @@
 })(typeof window!=='undefined'?window:globalThis,function(root){
   'use strict';
 
-  const VERSION='1.2';
+  const VERSION='1.3';
   const MIN_COMPLETION=60;
+  const MIN_DIRECTION_COMPLETION=60;
   const LEVEL_RANK={'S++':7,'S':6,'A':5,'B':4,'C':3,'D':2,'不符合硬条件':1,'数据待修复':0};
 
   const clamp=(v,min=0,max=100)=>Math.max(min,Math.min(max,Number(v)||0));
@@ -33,9 +34,24 @@
     });
     return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
   }
+  function directionCoverage(state,key,cf){
+    const interestIds=(cf?.INTEREST||[]).map((q,i)=>q[1]===key?i:null).filter(i=>i!==null);
+    const evidenceIds=(cf?.EVIDENCE||[]).map((q,i)=>q[1].includes(key)?i:null).filter(i=>i!==null);
+    const workIds=(cf?.WORK||[]).map((q,i)=>q[2].includes(key)?i:null).filter(i=>i!==null);
+    const count=(bucket,ids)=>({answered:ids.filter(i=>state?.[bucket]?.[i]!=null).length,total:ids.length});
+    const interest=count('interest',interestIds),evidence=count('evidence',evidenceIds),work=count('work',workIds);
+    const answered=interest.answered+evidence.answered+work.answered;
+    const total=interest.total+evidence.total+work.total;
+    return {
+      score:total?Math.round(answered/total*100):0,
+      ready:interest.answered>0&&evidence.answered>0&&work.answered>0,
+      interest,evidence,work
+    };
+  }
   function careerScore(state,key,cf){
-    const p=cf.profile(state),I=p.interestScores[key]?.score,E=p.evidenceScores[key]?.score,W=workstyleScore(state,key,cf);
-    return {completion:p.completion,interest:I,evidence:E,workstyle:W,score:weightedAverage([[I,.55],[W,.30],[E,.15]])};
+    const p=cf.profile(state),I=p.interestScores[key]?.score,E=p.evidenceScores[key]?.score,W=workstyleScore(state,key,cf),coverage=directionCoverage(state,key,cf);
+    const completeComponents=I!=null&&E!=null&&W!=null;
+    return {completion:p.completion,directionCompletion:coverage.score,directionReady:coverage.ready,coverage,interest:I,evidence:E,workstyle:W,score:completeComponents?weightedAverage([[I,.55],[W,.30],[E,.15]]):null};
   }
   function answerRiskFactor(state,index){
     const raw=state?.work?.[index];
@@ -91,8 +107,8 @@
     const key=directionKey(base.direction,cf);
     if(!key)return base;
     const c=careerScore(state,key,cf);
-    if(c.completion<MIN_COMPLETION||c.interest==null||c.score==null){
-      base.personalization={active:false,version:VERSION,completion:c.completion||0,reason:'Career Fit 信息不足'};
+    if(c.completion<MIN_COMPLETION||c.directionCompletion<MIN_DIRECTION_COMPLETION||!c.directionReady||c.interest==null||c.evidence==null||c.workstyle==null||c.score==null){
+      base.personalization={active:false,version:VERSION,completion:c.completion||0,directionCompletion:c.directionCompletion||0,reason:'Career Fit 全局或当前方向信息不足'};
       return base;
     }
 
@@ -113,9 +129,9 @@
     base.fitLevel=fitLevel(base,job,personalFit,capabilityScore,scoring);
     base.recommendationLevel=recommendationLevel(base,base.fitLevel,priority,capabilityScore);
     base.level=base.recommendationLevel;
-    base.personalization={active:true,version:VERSION,key,completion:c.completion,capabilityScore,careerScore:c.score,interest:c.interest,evidence:c.evidence,workstyle:c.workstyle,original,careerValue:newCareer};
+    base.personalization={active:true,version:VERSION,key,completion:c.completion,directionCompletion:c.directionCompletion,capabilityScore,careerScore:c.score,interest:c.interest,evidence:c.evidence,workstyle:c.workstyle,original,careerValue:newCareer};
     base.reasoning=base.reasoning||{};
-    base.reasoning.career=`Career Fit V${VERSION}：兴趣 ${c.interest??'—'} / 工作方式 ${c.workstyle??'—'} / 行为证据 ${c.evidence??'—'}，职业方向价值 ${newCareer}/15（原静态值 ${oldCareer}/15）。`;
+    base.reasoning.career=`Career Fit V${VERSION}：全局完成 ${c.completion}% / 当前方向覆盖 ${c.directionCompletion}%；兴趣 ${c.interest??'—'} / 工作方式 ${c.workstyle??'—'} / 行为证据 ${c.evidence??'—'}，职业方向价值 ${newCareer}/15（原静态值 ${oldCareer}/15）。`;
     base.reasoning.risk=risk.items.length?risk.items.map(x=>`${x.label} -${x.value}${x.personalized?`（个体化，原-${x.originalValue}）`:''}`).join('；'):'Career Fit 工作方式与已识别个人摩擦项暂无明显冲突。';
     base.reasoning.recommendation=`能力准备度 ${capabilityScore}/100；个性化适配 ${personalFit}/100；风险调整后优先分 ${priority}；最终推荐 ${base.recommendationLevel}${base.dataQuality?.status==='PARTIAL'?'（待核，上限B）':''}。`;
     return base;
@@ -132,23 +148,23 @@
   function decorateText(){
     if(typeof document==='undefined')return;
     const hero=document.querySelector('#career-fit-root .cf-hero p');
-    if(hero&&!hero.dataset.v12){hero.dataset.v12='1';hero.textContent='分三部分：你想做什么（兴趣）、你做过什么（证据）、你能接受什么（工作方式）。完成度达到 60% 后，职业方向 15 分与驻外/出差/销售 KPI 的个人摩擦会参与个性化 S/A/B；硬门槛、职责、专业语言、真实经历和公司外部风险不会被兴趣覆盖。';}
+    if(hero&&!hero.dataset.v13){hero.dataset.v13='1';hero.textContent='分三部分：你想做什么（兴趣）、你做过什么（证据）、你能接受什么（工作方式）。全局完成度与当前岗位方向覆盖度都达到 60%，且三类信息均有回答后，职业方向 15 分与驻外/出差/销售 KPI 的个人摩擦才参与个性化 S/A/B；硬门槛、职责、专业语言、真实经历和公司外部风险不会被兴趣覆盖。';}
     const disc=document.querySelector('#career-fit-root .cf-disclaimer');
-    if(disc&&!disc.dataset.v12){disc.dataset.v12='1';disc.textContent='Career Fit V1.2 只影响个人化的职业方向价值与工作方式摩擦。Eligibility Gate、JD职责、专业语言、真实经历、Data Quality 与公司外部风险仍按机会看板原规则独立判断。';}
+    if(disc&&!disc.dataset.v13){disc.dataset.v13='1';disc.textContent='Career Fit V1.3 只影响个人化的职业方向价值与工作方式摩擦，并增加方向级覆盖度门槛。Eligibility Gate、JD职责、专业语言、真实经历、Data Quality 与公司外部风险仍按机会看板原规则独立判断。';}
     const summary=document.querySelector('#app .cf-board-summary b');
-    if(summary){const cf=root.CareerFit2027,p=cf?.profile?cf.profile(loadState(cf)):null;if(p?.completion>=MIN_COMPLETION)summary.textContent='Career Fit · 已参与个性化推荐';}
+    if(summary){const cf=root.CareerFit2027,p=cf?.profile?cf.profile(loadState(cf)):null;if(p?.completion>=MIN_COMPLETION)summary.textContent='Career Fit · 按方向覆盖度参与个性化推荐';}
     const notes=document.querySelector('#app .notes-grid');
     if(notes&&!notes.querySelector('.cf-personal-note')){
-      const div=document.createElement('div');div.className='note-item full cf-personal-note';div.innerHTML='<b>Career Fit V1.2</b>：完成度达到 60% 后，原“职业方向价值 15 分”改由兴趣 × 工作方式 × 行为证据动态计算；驻外/高频出差/销售 KPI 只按个人可接受程度保留相应摩擦扣分。硬 Gate、职责、专业语言、真实经历与数据质量不被兴趣覆盖。';notes.appendChild(div);
+      const div=document.createElement('div');div.className='note-item full cf-personal-note';div.innerHTML='<b>Career Fit V1.3</b>：全局完成度 ≥60% 且当前岗位方向覆盖度 ≥60%，并且兴趣/工作方式/行为证据三类都有回答后，原“职业方向价值 15 分”才动态计算；驻外/高频出差/销售 KPI 只按个人可接受程度保留相应摩擦扣分。硬 Gate、职责、专业语言、真实经历与数据质量不被兴趣覆盖。';notes.appendChild(div);
     }
   }
   function patchScoring(){
     const scoring=root.CampusScoring,cf=root.CareerFit2027;
     if(!scoring?.evaluate||!cf?.profile)return false;
-    if(scoring.__careerPersonalizedV12)return true;
+    if(scoring.__careerPersonalizedV13)return true;
     const oldEvaluate=scoring.evaluate.bind(scoring);
     scoring.evaluate=function(job,now){return personalizeEvaluation(oldEvaluate(job,now),job,loadState(cf),cf,scoring);};
-    scoring.__careerPersonalizedV12=true;
+    scoring.__careerPersonalizedV13=true;
     scoring.careerPersonalizationVersion=VERSION;
     rerenderBoard();
     return true;
@@ -162,5 +178,5 @@
     setTimeout(decorateText,0);
   }
 
-  return {VERSION,MIN_COMPLETION,directionKey,workstyleScore,careerScore,adjustedRisk,fitLevel,recommendationLevel,personalizeEvaluation,initBrowser};
+  return {VERSION,MIN_COMPLETION,MIN_DIRECTION_COMPLETION,directionKey,workstyleScore,directionCoverage,careerScore,adjustedRisk,fitLevel,recommendationLevel,personalizeEvaluation,initBrowser};
 });

@@ -6,6 +6,7 @@
   'use strict';
   const TOP_JOBS_URL='/api/jobs?limit=100';
   const APP_CORE_URL='/app-core.js';
+  const LOGIC_PATCH_URL='/logic-correctness.js';
   const MAX_JOBS=100;
   const TOP_JOBS_TIMEOUT_MS=2500;
 
@@ -21,7 +22,8 @@
 
   function composeTopJobs(jobs,curated=[],limit=MAX_JOBS){
     const out=[],seen=new Set();
-    for(const job of [...(Array.isArray(curated)?curated:[]),...(Array.isArray(jobs)?jobs:[])]){
+    // 正常生产路径以 Campus 评分后的实时候选为准；精选池只用于不足数量或故障兜底，不能挤掉更优实时岗位。
+    for(const job of [...(Array.isArray(jobs)?jobs:[]),...(Array.isArray(curated)?curated:[])]){
       if(!job)continue;
       const key=jobKey(job)||String(job.id||'');
       if(key&&seen.has(key))continue;
@@ -55,6 +57,27 @@
       }));
     };
     return()=>{root.fetch=baseFetch;};
+  }
+
+  function loadScript(root,src,datasetKey){
+    return new Promise((resolve,reject)=>{
+      if(datasetKey&&root.document.querySelector(`script[data-${datasetKey}]`)){resolve();return;}
+      const script=root.document.createElement('script');
+      script.src=src;
+      script.async=false;
+      if(datasetKey)script.dataset[datasetKey.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]='1';
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error(`script failed: ${src}`));
+      root.document.body.appendChild(script);
+    });
+  }
+
+  function loadLogicPatch(root){
+    if(root.BoardLogicCorrectness){
+      if(root.CampusScoring)root.BoardLogicCorrectness.patchScoring(root.CampusScoring);
+      return Promise.resolve();
+    }
+    return loadScript(root,LOGIC_PATCH_URL,'board-logic-correctness');
   }
 
   function loadCore(root,{stage='full'}={}){
@@ -106,24 +129,35 @@
   async function start(root){
     root.BOARD_TOP100_ONLY=true;
     const nativeFetch=root.fetch.bind(root);
+    try{
+      await loadLogicPatch(root);
+    }catch(err){
+      console.error('Logic correctness layer failed to load.',err);
+      showLoading(root,'评价规则加载失败，请刷新页面重试。');
+      return;
+    }
+
     const bootstrapCount=prepareBootstrap(root);
     showLoading(root,bootstrapCount
-      ?`正在读取最新岗位；网络较慢时将直接打开 ${bootstrapCount} 个精选岗位…`
-      :`正在读取前 ${MAX_JOBS} 个岗位…`);
+      ?`正在从完整候选池计算最匹配岗位；网络较慢时将直接打开 ${bootstrapCount} 个精选岗位…`
+      :`正在计算前 ${MAX_JOBS} 个最匹配岗位…`);
 
     const topJobsPromise=fetchTopJobs(root,nativeFetch);
     installTop100FetchGuard(root,topJobsPromise,nativeFetch);
 
     try{
       const payload=await topJobsPromise;
-      const jobs=composeTopJobs(payload.jobs,root.YINGZHUAN_JOBS,MAX_JOBS);
+      // /api/jobs 已经基于完整 AI_Job 候选池执行 Campus Eligibility + Fit 排序；不要再让本地精选池占用 Top-100 配额。
+      const jobs=composeTopJobs(payload.jobs,[],MAX_JOBS);
       root.EMBEDDED_JOBS=jobs;
-      root.EMBEDDED_META=Object.assign({},payload.meta||{},{source:'top100-api',total:jobs.length,limit:MAX_JOBS,top100Only:true});
+      root.EMBEDDED_META=Object.assign({},payload.meta||{},{source:'ranked-top100-api',total:jobs.length,limit:MAX_JOBS,top100Only:true});
       root.EMBEDDED_RISK=[[],[]];
       root.EMBEDDED_COMPANY_META={};
+      // app-core 会自动 mergeYingzhuan；正常实时路径必须关闭该合并，否则精选岗位会再次绕过评分排序。
+      root.YINGZHUAN_JOBS=[];
       await loadCore(root,{stage:'top100'});
     }catch(err){
-      console.warn('Top-100 jobs unavailable or slow; using curated bootstrap.',err);
+      console.warn('Ranked Top-100 jobs unavailable or slow; using curated bootstrap.',err);
       if(bootstrapCount){
         await loadCore(root,{stage:'bootstrap'});
         return;
@@ -132,5 +166,5 @@
     }
   }
 
-  return {start,composeTopJobs,isLiveJobsUrl,moduleTextForTopJobs,prepareBootstrap,fetchTopJobs};
+  return {start,composeTopJobs,isLiveJobsUrl,moduleTextForTopJobs,prepareBootstrap,fetchTopJobs,loadLogicPatch};
 });

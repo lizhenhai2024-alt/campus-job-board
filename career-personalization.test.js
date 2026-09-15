@@ -51,6 +51,7 @@ function base(direction='GTM·市场策略',careerValue=15,riskItems=[]){
   assert.equal(r.fit.parts.learnability,before.learnability);
   assert.ok(r.fit.parts.careerValue>=13,'GTM高兴趣应保持较高方向价值');
   assert.ok(r.personalization.capabilityScore>=80,'能力准备度应独立计算');
+  assert.ok(r.personalization.directionCompletion>=60,'当前方向覆盖度必须达到激活门槛');
 }
 
 // 3. 低兴趣HR不能继续沿用原静态职业方向值
@@ -90,6 +91,22 @@ function base(direction='GTM·市场策略',careerValue=15,riskItems=[]){
   const s=fullState();const b=base();b.dataQuality={score:6,status:'PARTIAL',reasons:[]};
   const r=P.personalizeEvaluation(b,{},s,CF,{});
   assert.ok(['B','C','D'].includes(r.level));
+}
+
+// 8. 全局完成度虽然超过60%，但当前方向缺少工作方式回答时不得把剩余维度重新归一化后参与评分
+{
+  const s=CF.blankState();
+  CF.INTEREST.forEach((q,i)=>{s.interest[i]=5;});
+  CF.EVIDENCE.forEach((q,i)=>{s.evidence[i]=2;});
+  const profile=CF.profile(s);
+  assert.ok(profile.completion>=60,'测试前提：全局完成度必须已经超过60%');
+  const b=base('GTM·市场策略',15);
+  const before={fit:b.fit.score,priority:b.priorityScore,level:b.level};
+  const r=P.personalizeEvaluation(b,{},s,CF,{});
+  assert.equal(r.personalization.active,false,'方向三类信息不完整时不得激活个性化');
+  assert.equal(r.fit.score,before.fit);
+  assert.equal(r.priorityScore,before.priority);
+  assert.equal(r.level,before.level);
 }
 
 console.log('PASS career-personalization.test.js');

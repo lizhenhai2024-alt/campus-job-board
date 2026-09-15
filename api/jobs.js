@@ -1,11 +1,14 @@
 // Vercel Serverless Function — GET /api/jobs
-// Returns only the first 100 jobs from AI_Job. It intentionally uses HTTP Range
-// so the server does not need to download the complete multi-megabyte job pool.
+// Scans the complete AI_Job live pool, applies campus-job-board Eligibility/Fit logic,
+// then returns only the highest-ranked 100 jobs to keep the browser fast.
+
+const Scoring=require('../scoring.js');
+const Logic=require('../logic-correctness.js');
+Logic.patchScoring(Scoring);
 
 const SOURCE='https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/live-jobs.js';
 const DEFAULT_LIMIT=100;
 const MAX_LIMIT=100;
-const RANGE_ENDS=[1024*1024-1,2*1024*1024-1,4*1024*1024-1];
 
 function clampLimit(value){
   const n=Number.parseInt(value,10);
@@ -13,16 +16,17 @@ function clampLimit(value){
   return Math.min(MAX_LIMIT,n);
 }
 
-function parseTopJobs(source,limit=DEFAULT_LIMIT){
+function parseJobs(source,limit=Number.POSITIVE_INFINITY){
   const text=String(source||'');
   const marker='export const liveJobs';
   const markerAt=text.indexOf(marker);
   if(markerAt<0)return[];
   const arrayAt=text.indexOf('[',markerAt+marker.length);
   if(arrayAt<0)return[];
+  const max=Number.isFinite(limit)&&limit>0?limit:Number.POSITIVE_INFINITY;
   const jobs=[];
   let i=arrayAt+1;
-  while(i<text.length&&jobs.length<limit){
+  while(i<text.length&&jobs.length<max){
     while(i<text.length&&(/[\s,]/.test(text[i])))i+=1;
     if(i>=text.length||text[i]===']')break;
     if(text[i]!=='{'){i+=1;continue;}
@@ -54,21 +58,35 @@ function parseTopJobs(source,limit=DEFAULT_LIMIT){
   return jobs;
 }
 
-async function fetchTopJobs(limit){
-  let lastError=null;
-  for(const end of RANGE_ENDS){
-    try{
-      const response=await fetch(SOURCE,{headers:{Range:`bytes=0-${end}`,'User-Agent':'campus-job-board-top100'}});
-      if(!response.ok&&response.status!==206)throw new Error(`upstream ${response.status}`);
-      const text=await response.text();
-      const jobs=parseTopJobs(text,limit);
-      if(jobs.length>=limit||response.status===200){
-        if(!jobs.length)throw new Error('no jobs parsed');
-        return{jobs:jobs.slice(0,limit),rangeBytes:text.length,upstreamStatus:response.status};
-      }
-    }catch(err){lastError=err;}
+function selectTopJobs(jobs,limit=DEFAULT_LIMIT,now=new Date(),scoring=Scoring){
+  const evaluated=[];
+  for(const job of Array.isArray(jobs)?jobs:[]){
+    if(!job)continue;
+    const result=scoring.evaluate(job,now);
+    if(!result?.gate?.passed)continue;
+    if(result?.dataQuality?.status==='INVALID')continue;
+    evaluated.push({...job,_evaluation:result});
   }
-  throw lastError||new Error('unable to parse top jobs');
+  evaluated.sort(scoring.compare);
+  return {
+    jobs:evaluated.slice(0,limit).map(row=>{
+      const {_evaluation,...job}=row;
+      return job;
+    }),
+    eligibleCount:evaluated.length
+  };
+}
+
+async function fetchFullPool(){
+  const response=await fetch(SOURCE,{
+    headers:{'User-Agent':'campus-job-board-ranked-top100'},
+    cache:'no-store'
+  });
+  if(!response.ok)throw new Error(`upstream ${response.status}`);
+  const text=await response.text();
+  const jobs=parseJobs(text);
+  if(!jobs.length)throw new Error('no jobs parsed from upstream');
+  return {jobs,bytes:text.length,upstreamStatus:response.status};
 }
 
 async function handler(req,res){
@@ -78,16 +96,20 @@ async function handler(req,res){
   }
   const limit=clampLimit(req.query&&req.query.limit);
   try{
-    const result=await fetchTopJobs(limit);
-    res.setHeader('Cache-Control','public, s-maxage=300, stale-while-revalidate=3600');
+    const source=await fetchFullPool();
+    const ranked=selectTopJobs(source.jobs,limit,new Date());
+    if(!ranked.jobs.length)throw new Error('no eligible ranked jobs');
+    res.setHeader('Cache-Control','public, s-maxage=300, stale-while-revalidate=1800');
     res.status(200).json({
-      jobs:result.jobs,
+      jobs:ranked.jobs,
       meta:{
-        source:'AI_Job first jobs',
+        source:'AI_Job full pool → campus-job-board scoring',
         limit,
-        count:result.jobs.length,
-        upstreamStatus:result.upstreamStatus,
-        rangeBytes:result.rangeBytes,
+        count:ranked.jobs.length,
+        scannedCount:source.jobs.length,
+        eligibleCount:ranked.eligibleCount,
+        upstreamStatus:source.upstreamStatus,
+        sourceBytes:source.bytes,
         generatedAt:new Date().toISOString()
       }
     });
@@ -98,5 +120,6 @@ async function handler(req,res){
 }
 
 module.exports=handler;
-module.exports.parseTopJobs=parseTopJobs;
+module.exports.parseJobs=parseJobs;
+module.exports.selectTopJobs=selectTopJobs;
 module.exports.clampLimit=clampLimit;
