@@ -1,7 +1,9 @@
-// 公司HC与薪资参考数据（2027届校招）
-// 数据来源：各公司校招官网、高校就业网、牛客/职友集真实offer分享
-// 注意：薪资为市场/运营/GTM方向参考区间，研发岗通常更高
+// 公司级校招规模与市场薪资参考（非岗位事实源）
+// 数据来源：公司校招官网、高校就业网、公开媒体与可追溯 offer/招聘信息。
+// 强制口径：hc 是公司/整届/项目层面的规模参考，不得当成本岗位 HC；salary 是市场参考，不得覆盖 AI_Job 中岗位 JD/ATS 明确披露的 compensation。
+// 岗位级发布日期、HC、薪资事实统一以 AI_Job live-jobs 的 publishedAt / headcount / compensation 为准。
 // 更新时间：2026-09-12
+window.COMPANY_HC_SALARY_META={scope:'company_reference',jobFactSource:'AI_Job/live-jobs',updatedAt:'2026-09-12'};
 window.COMPANY_HC_SALARY = {
   "小鹏汽车": {
     hc: "近5000人（管技2000+生产1500+销售1500），300+岗位",

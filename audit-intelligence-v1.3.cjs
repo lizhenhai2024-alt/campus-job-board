@@ -11,7 +11,7 @@ if (!S?.evaluate) throw new Error('CampusScoring V1.3 not loaded');
 
 const LEVEL_RANK = { 'S++': 6, S: 5, A: 4, B: 3, C: 2, D: 1 };
 const PRIORITY = new Set(['S++', 'S', 'A', 'B']);
-const COVERAGE_TARGETS = { riskCompanies: 0.50, salaryJobs: 0.50 };
+const COVERAGE_TARGETS = { riskCompanies: 0.50, salaryJobs: 0.50, headcountJobs: 0.20, publicationJobs: 0.50 };
 
 function companyKey(value = '') {
   return String(value)
@@ -65,12 +65,14 @@ function targetGap(current, total, target) {
     const { job, e, level } = row;
     const key = companyKey(job.company) || String(job.company || '待核公司');
     if (!companies.has(key)) companies.set(key, {
-      name: job.company || '待核公司', jobs: 0, salaryKnown: 0, officialJobs: 0,
+      name: job.company || '待核公司', jobs: 0, salaryKnown: 0, headcountKnown: 0, publicationKnown: 0, officialJobs: 0,
       bestLevel: level, bestScore: Number(e.priorityScore || 0), levels: new Set()
     });
     const c = companies.get(key);
     c.jobs += 1;
     c.salaryKnown += job.compensation?.disclosed ? 1 : 0;
+    c.headcountKnown += job.headcount?.disclosed ? 1 : 0;
+    c.publicationKnown += /^\d{4}-\d{2}-\d{2}$/.test(String(job.publishedAt || '')) ? 1 : 0;
     c.officialJobs += job.sourceType === 'official' ? 1 : 0;
     c.levels.add(level);
     if ((LEVEL_RANK[level] || 0) > (LEVEL_RANK[c.bestLevel] || 0) ||
@@ -97,6 +99,8 @@ function targetGap(current, total, target) {
   );
 
   const salaryKnownJobs = priorityJobs.filter(({ job }) => job.compensation?.disclosed).length;
+  const headcountKnownJobs = priorityJobs.filter(({ job }) => job.headcount?.disclosed).length;
+  const publicationKnownJobs = priorityJobs.filter(({ job }) => /^\d{4}-\d{2}-\d{2}$/.test(String(job.publishedAt || ''))).length;
   const riskCoveredCompanies = companyRows.filter((c) => c.events.length > 0).length;
   const highConfidenceCovered = companyRows.filter((c) => c.highConfidenceEvents > 0).length;
   const salaryCoveredCompanies = companyRows.filter((c) => c.salaryKnown > 0).length;
@@ -106,10 +110,12 @@ function targetGap(current, total, target) {
   console.log(`priorityJobs(S++/S/A/B)=${priorityJobs.length}`);
   console.log(`priorityCompanies=${companyRows.length}`);
   console.log(`salaryKnownJobs=${salaryKnownJobs}/${priorityJobs.length} (${pct(salaryKnownJobs, priorityJobs.length)})`);
+  console.log(`headcountKnownJobs=${headcountKnownJobs}/${priorityJobs.length} (${pct(headcountKnownJobs, priorityJobs.length)})`);
+  console.log(`publicationKnownJobs=${publicationKnownJobs}/${priorityJobs.length} (${pct(publicationKnownJobs, priorityJobs.length)})`);
   console.log(`salaryCoveredCompanies=${salaryCoveredCompanies}/${companyRows.length} (${pct(salaryCoveredCompanies, companyRows.length)})`);
   console.log(`riskCoveredCompanies=${riskCoveredCompanies}/${companyRows.length} (${pct(riskCoveredCompanies, companyRows.length)})`);
   console.log(`AorB-evidence-riskCompanies=${highConfidenceCovered}/${companyRows.length} (${pct(highConfidenceCovered, companyRows.length)})`);
-  console.log(`coverageTarget: riskCompanies>=50% (gap ${targetGap(riskCoveredCompanies, companyRows.length, COVERAGE_TARGETS.riskCompanies)} companies); salaryJobs>=50% (gap ${targetGap(salaryKnownJobs, priorityJobs.length, COVERAGE_TARGETS.salaryJobs)} jobs)`);
+  console.log(`coverageTarget: riskCompanies>=50% (gap ${targetGap(riskCoveredCompanies, companyRows.length, COVERAGE_TARGETS.riskCompanies)} companies); salaryJobs>=50% (gap ${targetGap(salaryKnownJobs, priorityJobs.length, COVERAGE_TARGETS.salaryJobs)} jobs); headcountJobs>=20% (gap ${targetGap(headcountKnownJobs, priorityJobs.length, COVERAGE_TARGETS.headcountJobs)} jobs); publicationJobs>=50% (gap ${targetGap(publicationKnownJobs, priorityJobs.length, COVERAGE_TARGETS.publicationJobs)} jobs)`);
 
   console.log('\n--- PRIORITY COMPANIES MISSING RISK INTELLIGENCE ---');
   const missingRisk = companyRows.filter((c) => c.events.length === 0).slice(0, 30);
@@ -125,6 +131,16 @@ function targetGap(current, total, target) {
     console.log(`${c.bestLevel}\tP${c.bestScore}\tC-events=${c.communityEvents}\t${c.name}`);
   }
 
+  console.log('\n--- PRIORITY JOBS MISSING HC ---');
+  const missingHc = priorityJobs.filter(({ job }) => !job.headcount?.disclosed).slice(0, 40);
+  if (!missingHc.length) console.log('none');
+  for (const { job, e, level } of missingHc) console.log(`${level}\tP${e.priorityScore}\t${job.company}\t${job.title}\t${job.city || '待核'}\t${job.sourceType || 'unknown'}`);
+
+  console.log('\n--- PRIORITY JOBS MISSING PUBLICATION DATE ---');
+  const missingPublication = priorityJobs.filter(({ job }) => !/^\d{4}-\d{2}-\d{2}$/.test(String(job.publishedAt || ''))).slice(0, 40);
+  if (!missingPublication.length) console.log('none');
+  for (const { job, e, level } of missingPublication) console.log(`${level}\tP${e.priorityScore}\t${job.company}\t${job.title}\t${job.city || '待核'}\t${job.sourceType || 'unknown'}`);
+
   console.log('\n--- PRIORITY JOBS MISSING SALARY ---');
   const missingSalary = priorityJobs
     .filter(({ job }) => !job.compensation?.disclosed)
@@ -135,5 +151,5 @@ function targetGap(current, total, target) {
     console.log(`${level}\tP${e.priorityScore}\t${job.company}\t${job.title}\t${job.city || '待核'}\t${job.sourceType || 'unknown'}`);
   }
 
-  console.log('\nNOTE: “missing risk intelligence” means no evidence-backed event is recorded; it does NOT mean the company is risk-free. Coverage targets are research goals only and never change S/A/B or fail CI.');
+  console.log('\nNOTE: missing risk/HC/salary/publication means the current evidence pool has no supported fact; it does NOT mean risk-free, HC=0, salary=0, or that the job is old. Coverage targets are research goals only and never change S/A/B or fail CI.');
 })();

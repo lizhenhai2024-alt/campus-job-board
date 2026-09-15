@@ -168,6 +168,9 @@ function validRiskEvent(e){return Boolean(e&&e.id&&e.type&&/^\d{4}-\d{2}-\d{2}$/
 function riskEvents(profile){return(profile?.events||[]).filter(validRiskEvent).filter(e=>e.evidenceLevel!=='D').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))}
 function riskSourceGuide(){return`<details class="intel-risk-source-guide"><summary>来源说明：A/B 高可信 · CampusShame / 牛客 / 脉脉等为社区线索</summary><div class="intel-risk-source-body">${RISK_SOURCE_GUIDE.map(item=>`<div class="intel-risk-source-row"><b>${esc(item.level)}级 · ${esc(item.name)}</b><div class="muted">典型来源：${esc(item.sources)}</div><div class="muted">使用原则：${esc(item.usage)}</div></div>`).join('')}<p class="intel-risk-source-foot">CampusShame 是校招案例汇总/证据索引，主要引用牛客、脉脉、知乎等公开论坛，因此默认按 C 级二手社区线索处理；若条目可回溯到 A/B 级原始证据，则以原始证据等级为准。</p></div></details>`}
 function salaryText(job){const m=job?.monthlySalary||job?.compensation?.monthlyDisplay||'',a=job?.annualSalary||job?.compensation?.annualDisplay||'';if(!job?.compensation?.disclosed)return'';return [m,a].filter(Boolean).join(' · ')}
+function publishedText(job){const v=String(job?.publishedAt||'');return /^\d{4}-\d{2}-\d{2}$/.test(v)?v:''}
+function headcountText(job){const h=job?.headcount||{};if(!h.disclosed)return'';const d=h.display||job?.headcountDisplay||'';if(!d)return'';return h.scope==='program'?`校招规模 ${d}`:`HC ${d}`}
+function headcountTitle(job){const h=job?.headcount||{};if(!h.disclosed)return'';const scope=h.scope==='program'?'整届/项目招聘规模，不等于本岗位HC':'本岗位招聘HC';return [scope,h.sourceLabel||'',h.evidence||''].filter(Boolean).join('；')}
 
 /* ---- 评价 / 筛选（与原站一致） ---- */
 function evaluated(){
@@ -218,7 +221,7 @@ function jobCard(j, extraCount=0, applyUsed=0){
   const reason=masterOnly?'硕士及以上专属岗位，本科画像不满足硬门槛，仅供参考':(v.level==='S++'?'强直接经历 + 高职责匹配':v.level==='S'?'核心方向高度匹配':v.level==='A'?'整体适配，值得重点投':v.level==='B'?'相邻机会，可选择性投':v.level==='C'?'探索机会，优先级较低':v.level==='D'?'投入产出比较低':v.level);
   const pillText=masterOnly?'硕士':recLabel(v.level);
   const pillCls=masterOnly?'m':levelClass(v.level);
-  const comp=j.compensation||{},salary=salaryText(j);
+  const comp=j.compensation||{},salary=salaryText(j),published=publishedText(j),hc=headcountText(j);
   const events=riskEvents(riskFor(j.company));
   const highRisk=events.filter(e=>['A','B'].includes(e.evidenceLevel)&&e.sentiment==='negative').length;
   const internRisk=events.filter(e=>e.type==='intern_conversion').length;
@@ -238,6 +241,8 @@ function jobCard(j, extraCount=0, applyUsed=0){
         <span class="tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${esc(j.city||'待核')}</span>
         <span class="tag">${esc(v.direction)}</span>
         <span class="tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${esc(j.deadline||'待核')}</span>
+        ${published?`<span class="tag" title="来源披露的岗位发布日期；系统发现时间不作为发布日期">发布 ${esc(published)}</span>`:''}
+        ${hc?`<span class="tag" title="${esc(headcountTitle(j))}">${esc(hc)}</span>`:''}
         ${salary?`<span class="tag pay" title="薪资来源：${esc(comp.sourceLabel||'岗位来源')}；可信度：${esc(confidenceLabel(comp))}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="6" y1="10" x2="6" y2="10"/></svg>${esc(salary)}</span>`:''}
         <span class="tag ${j.sourceType==='official'?'ok':'warn'}">${j.sourceType==='official'?'官方来源':'二手 · 投递前回官网'}</span>
         ${qualityTag(v.dataQuality)}
@@ -268,6 +273,7 @@ function jobCard(j, extraCount=0, applyUsed=0){
 }
 function companyJobRow(j, applyUsed=0){
   const v=j._evaluation;
+  const salary=salaryText(j),published=publishedText(j),hc=headcountText(j);
   const masterOnly=!v.gate.passed&&(v.gate.reasons||[]).some(r=>/硕士|研究生/.test(r));
   const pillText=masterOnly?'硕士':recLabel(v.level);
   const pillCls=masterOnly?'m':levelClass(v.level);
@@ -278,7 +284,7 @@ function companyJobRow(j, applyUsed=0){
     <span class="pill ${pillCls}">${esc(pillText)}</span>
     <div class="co-job-main">
       <button class="co-job-title" data-detail="${esc(j.id)}" title="${esc(j.title||'待核岗位')}">${isYingzhuanJob(j)?`<span style="color:#f5a623;font-size:13px;margin-right:2px" title="精选岗位">★</span>`:''}${esc(j.title||'待核岗位')}</button>
-      <div class="co-job-sub">${esc(j.city||'待核')} · ${esc(v.direction)} · ${esc(j.deadline||'待核')}</div>
+      <div class="co-job-sub">${esc(j.city||'待核')} · ${esc(v.direction)} · 截止 ${esc(j.deadline||'待核')}${published?` · 发布 ${esc(published)}`:''}${hc?` · ${esc(hc)}`:''}${salary?` · ${esc(salary)}`:''}</div>
       ${watchFor(j)?`<div class="co-job-watch">要注意 ${esc(watchFor(j))}</div>`:''}
       ${(()=>{const sl=isShortlistJob(j);return sl?`<div class="co-job-watch" style="color:#e65100">投递清单·${shortlistBucketLabel[sl.bucket]||sl.bucket}</div>`:'';})()}
     </div>
@@ -321,7 +327,7 @@ function companyCard(g, index, applyUsed=0){
           ${highRisk?`<span class="tag bad">历史风险 A/B·${highRisk}</span>`:''}
           ${internRisk?`<span class="tag warn">实习留用线索 ${internRisk}</span>`:''}
         </div>
-        ${hcData?`<div class="co-hc-salary" style="font-size:12px;color:#666;margin-top:4px;line-height:1.5"><span style="color:#2e7d32;font-weight:600">HC:</span> ${esc(hcData.hc)} &nbsp;|&nbsp; <span style="color:#1565c0;font-weight:600">薪资:</span> ${esc(hcData.salary)}${hcData.note?` <span style="color:#999" title="${esc(hcData.note)}">ⓘ</span>`:''}</div>`:''}
+        ${hcData?`<div class="co-hc-salary" style="font-size:12px;color:#666;margin-top:4px;line-height:1.5" title="公司级参考，不代表具体岗位；来源：${esc(hcData.source||'待核')}"><span style="color:#2e7d32;font-weight:600">校招规模参考:</span> ${esc(hcData.hc)} &nbsp;|&nbsp; <span style="color:#1565c0;font-weight:600">市场薪资参考:</span> ${esc(hcData.salary)}${hcData.note?` <span style="color:#999" title="${esc(hcData.note)}">ⓘ</span>`:''}</div>`:''}
         ${watchFor(null, g.name)?`<div class="co-watch">要注意 ${esc(watchFor(null, g.name))}</div>`:''}
       </div>
     </header>
