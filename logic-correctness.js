@@ -38,6 +38,14 @@
   const uniq=a=>[...new Set((a||[]).filter(Boolean))];
   function clauses(text){return String(text||'').split(/[。；;，,\n]/).map(x=>x.trim()).filter(Boolean);}
   function candidateEvidence(job={}){
+    // 事实优先读 jdEvidence，candidateFit 仅过渡期兜底（见 scoring.js 的 jdEvidenceOf）
+    const e=job.jdEvidence;
+    if(e) return [
+      ...arr(e.majorClauses),
+      ...arr(e.eligibilityClauses),
+      ...arr(e.businessDuties),
+      ...arr(e.technicalDuties)
+    ];
     const f=job.candidateFit||{};
     return [
       ...arr(f.major&&f.major.evidence),
