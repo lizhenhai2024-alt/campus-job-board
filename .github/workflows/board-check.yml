@@ -14,6 +14,7 @@ on:
       - 'data/**'
       - 'vercel.json'
       - 'scoring.js'
+      - 'logic-correctness.js'
       - 'company-hc-salary.js'
       - 'career-fit.js'
       - 'career-personalization.js'
@@ -41,6 +42,7 @@ on:
       - 'data/**'
       - 'vercel.json'
       - 'scoring.js'
+      - 'logic-correctness.js'
       - 'company-hc-salary.js'
       - 'career-fit.js'
       - 'career-personalization.js'
@@ -72,7 +74,9 @@ jobs:
         with:
           node-version: 24
       - name: Check scoring syntax
-        run: node --check scoring.js
+        run: |
+          node --check scoring.js
+          node --check logic-correctness.js
       - name: Check app, API and Career Fit syntax
         run: |
           node --check app.js
@@ -82,7 +86,7 @@ jobs:
           node --check api/jobs.test.cjs
           node --check career-fit.js
           node --check career-personalization.js
-      - name: Run top-100 loading tests
+      - name: Run ranked loading tests
         run: |
           node app-loader.test.cjs
           node api/jobs.test.cjs
@@ -131,17 +135,23 @@ jobs:
           check "index.html is non-empty" test -s index.html
           check "app bootstrap is non-empty" test -s app.js
           check "app core is non-empty" test -s app-core.js
-          check "top100 endpoint exists" test -s api/jobs.js
-          check "top100 endpoint test exists" test -s api/jobs.test.cjs
-          check "bootstrap calls top100 endpoint" grep -q "TOP_JOBS_URL='/api/jobs?limit=100'" app.js
-          check "bootstrap caps jobs at 100" grep -q 'MAX_JOBS=100' app.js
-          check "top100 guard blocks full live-jobs refresh" grep -q 'installTop100FetchGuard' app.js
-          check "API caps limit at 100" grep -q 'MAX_LIMIT=100' api/jobs.js
-          check "API uses byte ranges" grep -q 'Range:' api/jobs.js
+          check "logic correctness layer exists" test -s logic-correctness.js
+          check "ranked endpoint exists" test -s api/jobs.js
+          check "ranked endpoint test exists" test -s api/jobs.test.cjs
+          check "bootstrap calls ranked top100 endpoint" grep -q "TOP_JOBS_URL='/api/jobs?limit=100'" app.js
+          check "browser payload remains capped at 100" grep -q 'MAX_JOBS=100' app.js
+          check "live-jobs refresh is guarded by ranked payload" grep -q 'installTop100FetchGuard' app.js
+          check "logic patch loads before app core" grep -q "LOGIC_PATCH_URL='/logic-correctness.js'" app.js
+          check "healthy live path disables curated merge" grep -q 'root.YINGZHUAN_JOBS=\[\]' app.js
+          check "API response remains capped at 100" grep -q 'MAX_LIMIT=100' api/jobs.js
+          check "API parses complete upstream pool" grep -q 'const jobs=parseJobs(text);' api/jobs.js
+          check "API ranks full candidate pool" grep -q 'selectTopJobs(source.jobs' api/jobs.js
+          check "API uses board scoring" grep -q "require('../scoring.js')" api/jobs.js
+          check "API uses strict logic layer" grep -q "require('../logic-correctness.js')" api/jobs.js
           check "full snapshot is removed" bash -c "! find data -maxdepth 1 -type f -name 'snapshot-*.html' | grep -q ."
           check "app no longer references full snapshot" bash -c "! grep -q 'SNAPSHOT_URL\|snapshot-e316bc7' app.js"
           check "bootstrap references app core" grep -q "APP_CORE_URL='/app-core.js'" app.js
-          check "bootstrap uses curated jobs immediately" grep -q 'YINGZHUAN_JOBS' app.js
+          check "bootstrap keeps curated jobs for fallback" grep -q 'YINGZHUAN_JOBS' app.js
           if grep -Eq '<script[^>]+scoring-v1\.1\.js' index.html; then
             echo "::error::legacy scoring-v1.1.js must not be wired in production"; exit 1
           else echo "PASS: legacy scoring-v1.1.js is not wired"; fi
@@ -163,3 +173,4 @@ jobs:
           check "Career Fit loader is wired" grep -q "script.src = 'career-fit.js'" company-hc-salary.js
           check "Career personalization loader is wired" grep -q "p.src = 'career-personalization.js'" company-hc-salary.js
           check "personalization uses 60 percent activation gate" grep -q 'MIN_COMPLETION=60' career-personalization.js
+          check "personalization uses direction-level 60 percent gate" grep -q 'MIN_DIRECTION_COMPLETION=60' career-personalization.js
