@@ -62,14 +62,27 @@
 
   function uniq(arr){ return [...new Set((arr||[]).filter(Boolean).map(String))]; }
   function arr(v){ return Array.isArray(v) ? v : v ? [v] : []; }
+  // AI_Job 只发事实（jdEvidence），判定归本层 —— 契约 job-intelligence-contract-v1 §4。
+  // candidateFit 是上游已废弃的判定对象，仅作过渡期兜底（见 AI_Job commit 37fd875）。
+  function jdEvidenceOf(job){
+    const e=job&&job.jdEvidence;
+    if(e) return {
+      major: arr(e.majorClauses),
+      elig: arr(e.eligibilityClauses),
+      biz: arr(e.businessDuties),
+      tech: arr(e.technicalDuties)
+    };
+    const f=(job&&job.candidateFit)||{};
+    return {
+      major: arr(f.major&&f.major.evidence),
+      elig: arr(f.eligibilityEvidence),
+      biz: arr(f.responsibility&&f.responsibility.business),
+      tech: arr(f.responsibility&&f.responsibility.technical)
+    };
+  }
   function evidence(job){
-    const f=job.candidateFit||{};
-    return uniq([
-      ...arr(f.major&&f.major.evidence),
-      ...arr(f.eligibilityEvidence),
-      ...arr(f.responsibility&&f.responsibility.business),
-      ...arr(f.responsibility&&f.responsibility.technical)
-    ]);
+    const e=jdEvidenceOf(job);
+    return uniq([...e.major, ...e.elig, ...e.biz, ...e.tech]);
   }
   function sourceText(job){
     return [
@@ -134,14 +147,14 @@
   }
 
   function dataQuality(job){
-    const ev=evidence(job), f=job.candidateFit||{}, desc=String(job.description||'');
+    const ev=evidence(job), jde=jdEvidenceOf(job), desc=String(job.description||'');
     let score=0;
     const reasons=[];
     if(job.sourceType==='official'){ score+=3; reasons.push('官方招聘来源 +3'); }
     else if(job.sourceUrl){ score+=1; reasons.push('有可追溯来源 +1'); }
     if(job.sourceUrl){ score+=directJobUrl(job.sourceUrl)?2:1; reasons.push(directJobUrl(job.sourceUrl)?'可直达具体岗位 +2':'有来源链接 +1'); }
-    if(arr(f.major&&f.major.evidence).length || arr(f.eligibilityEvidence).length){ score+=2; reasons.push('有专业/资格原文证据 +2'); }
-    if(desc.length>=100 || arr(f.responsibility&&f.responsibility.business).length || arr(f.responsibility&&f.responsibility.technical).length){ score+=1; reasons.push('有职责信息 +1'); }
+    if(jde.major.length || jde.elig.length){ score+=2; reasons.push('有专业/资格原文证据 +2'); }
+    if(desc.length>=100 || jde.biz.length || jde.tech.length){ score+=1; reasons.push('有职责信息 +1'); }
     if(job.deadline){ score+=1; reasons.push('有截止日期 +1'); }
     if(desc.length>=180 || ev.length>=3){ score+=1; reasons.push('JD信息较完整 +1'); }
     score=Math.min(10,score);
@@ -149,7 +162,7 @@
     let status=score>=7?'VALID':score>=4?'PARTIAL':'INVALID';
     const title=String(job.title||'');
     const obviousAggregate=/多个岗位|岗位合集|职位合集|岗位集合|职位集合|多岗位|招聘岗位如下/i.test(title+' '+desc);
-    const genericSecondary=job.sourceType!=='official' && /^自动发现的/.test(desc) && !arr(f.major&&f.major.evidence).length && !arr(f.responsibility&&f.responsibility.business).length;
+    const genericSecondary=job.sourceType!=='official' && /^自动发现的/.test(desc) && !jde.major.length && !jde.biz.length;
     const bogusIdentity=/^(办公地址|工作地点|工作地址|待定|详见官网)$/.test(title.trim())
       || /^(办公地址|工作地点|工作地址)$/.test(String(job.company||'').trim())
       || (title.length>60 && /办公地址/.test(title));
@@ -444,9 +457,15 @@
   ];
 
   function arr(v){return Array.isArray(v)?v:v?[v]:[]}
+  // 事实优先读 jdEvidence，candidateFit 仅过渡期兜底（同 base 层 jdEvidenceOf）
+  function jdeOf(job){
+    const e=job&&job.jdEvidence;
+    if(e) return [arr(e.majorClauses),arr(e.eligibilityClauses),arr(e.businessDuties),arr(e.technicalDuties)];
+    const f=(job&&job.candidateFit)||{};
+    return [arr(f.major&&f.major.evidence),arr(f.eligibilityEvidence),arr(f.responsibility&&f.responsibility.business),arr(f.responsibility&&f.responsibility.technical)];
+  }
   function sourceText(job){
-    const f=job.candidateFit||{};
-    return [job.title,job.description,job.city,job.company,...arr(job.roleFamily),...arr(job.skills),...arr(job.languages),...arr(job.experienceKeywords),...arr(job.preferenceTags),...arr(job.riskTags),...arr(f.major&&f.major.evidence),...arr(f.eligibilityEvidence),...arr(f.responsibility&&f.responsibility.business),...arr(f.responsibility&&f.responsibility.technical)].filter(Boolean).join(' ');
+    return [job.title,job.description,job.city,job.company,...arr(job.roleFamily),...arr(job.skills),...arr(job.languages),...arr(job.experienceKeywords),...arr(job.preferenceTags),...arr(job.riskTags),...jdeOf(job).flat()].filter(Boolean).join(' ');
   }
   function clauses(t){return String(t||'').split(/[。；;，,\n]/).map(x=>x.trim()).filter(Boolean)}
   function alternativesSatisfied(t){
@@ -506,11 +525,9 @@
   }
   function gate(job,now=new Date()){
     const old=oldGate(job,now),t=sourceText(job);
-    const f=job.candidateFit||{};
     const gateText=[job.title,job.description,job.city,job.company,
       ...arr(job.roleFamily),...arr(job.experienceKeywords),...arr(job.preferenceTags),...arr(job.riskTags),
-      ...arr(f.major&&f.major.evidence),...arr(f.eligibilityEvidence),
-      ...arr(f.responsibility&&f.responsibility.business),...arr(f.responsibility&&f.responsibility.technical)
+      ...jdeOf(job).flat()
     ].filter(Boolean).join(' ');
     const reasons=old.reasons.filter(x=>
       !/^必须.+当前英语画像不满足$/.test(x) &&
