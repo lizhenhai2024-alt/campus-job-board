@@ -121,9 +121,13 @@ jobs:
           check "priority risk history exists" test -f AI_Job/src/data/company-risk-history-priority.js
           check "company risk core exists" test -f AI_Job/src/core/company-risk.js
           check "compensation core exists" test -f AI_Job/src/core/compensation.js
+          check "headcount core exists" test -f AI_Job/src/core/headcount.js
           check "compensation enrichment exists" test -f AI_Job/scripts/enrich-job-compensation.mjs
           check "monthly salary wiring exists" grep -q 'monthlySalary' AI_Job/src/core/compensation.js
           check "annual salary wiring exists" grep -q 'annualSalary' AI_Job/src/core/compensation.js
+          check "headcount display wiring exists" grep -q 'headcountDisplay' AI_Job/src/core/headcount.js
+          check "published date normalization exists" grep -q 'normalizePublishedAt' AI_Job/src/core/headcount.js
+          check "discoveredAt is forbidden as publication fallback" grep -q 'discoveredAt / firstSeen' AI_Job/src/core/headcount.js
           check "company risk history export exists" grep -q 'companyRiskHistory' AI_Job/src/data/company-risk-history.js
           check "priority company risk history export exists" grep -q 'priorityCompanyRiskHistory' AI_Job/src/data/company-risk-history-priority.js
           check "merged risk history wiring exists" grep -q 'mergedCompanyRiskHistory' AI_Job/src/core/company-risk.js
@@ -165,6 +169,10 @@ jobs:
           check "Nowcoder source guidance is present" grep -q '牛客' "$WIRING_FILE"
           check "Maimai source guidance is present" grep -q '脉脉' "$WIRING_FILE"
           check "community evidence disclaimer is present" grep -q '默认按 C 级二手社区线索处理' "$WIRING_FILE"
+          check "job HC rendering exists" grep -q 'function headcountText' "$WIRING_FILE"
+          check "publication rendering exists" grep -q 'function publishedText' "$WIRING_FILE"
+          check "company reference scope is explicit" grep -q 'COMPANY_HC_SALARY_META' company-hc-salary.js
+          check "company reference is not labelled as exact job HC" grep -q '校招规模参考' "$WIRING_FILE"
           if grep -q 'CareerFit2027' scoring.js; then
             echo "::error::base scoring engine must not depend on Career Fit"; exit 1
           else echo "PASS: base scoring engine remains independent from Career Fit"; fi
