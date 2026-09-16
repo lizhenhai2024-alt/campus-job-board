@@ -1,15 +1,14 @@
 name: Verify risk intelligence contract
 
-# 本仓库的职责已收敛为「发布 risk-intelligence.json 契约 + 守住它与 scoring.js 不漂移」。
-# 看板（index.html / app-core.js / api/ 等）已摘除，原来的那些 UI 断言随之作废。
-# scoring.js 保留：它是契约的被校验方，也是 risk()/patchRisk() 的规则实现在哪里的证据。
-
+# 本仓库负责决策/评分契约；AI_Job 只提供岗位事实。
 on:
   push:
     branches: [main]
     paths:
       - 'risk-intelligence.json'
       - 'scoring.js'
+      - 'query-layer-adapter.js'
+      - 'query-layer-adapter.test.js'
       - 'scripts/**'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
@@ -25,6 +24,8 @@ on:
     paths:
       - 'risk-intelligence.json'
       - 'scoring.js'
+      - 'query-layer-adapter.js'
+      - 'query-layer-adapter.test.js'
       - 'scripts/**'
       - 'scoring-v1.1.test.js'
       - 'scoring-v1.2.test.js'
@@ -51,10 +52,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Check kernel syntax
-        run: node --check scoring.js
-      # 看板摘除后，scoring.js 是唯一还在被校验的实现，必须是自洽的内核：
-      # 不能反向依赖任何已删除的 UI/展示层文件，否则它就悄悄变成了半截工具。
+      - name: Check kernel and adapter syntax
+        run: |
+          node --check scoring.js
+          node --check query-layer-adapter.js
+          node --check query-layer-adapter.test.js
       - name: Verify kernel is self-contained
         shell: bash
         run: |
@@ -76,35 +78,40 @@ jobs:
           node scoring-v1.2.test.js
           node scoring-v1.3-quality.test.js
           node scoring-v1.4-industry.test.js
-      # 契约里声明的风险源 URL 必须在上游真的存在，否则下游拿到的是 404。
-      # 这一步把「契约 → 上游文件」这一段也纳入 CI，而不是等 CareerPilot 刷新时才炸。
+          node query-layer-adapter.test.js
+      - name: Verify AI_Job Query Layer exists and stays fact-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s AI_Job/jobs/index/companies.json
+          test -s AI_Job/jobs/index/jobs.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const q=JSON.parse(fs.readFileSync('AI_Job/jobs/index/jobs.json','utf8'));
+          if(q.schemaVersion!==1 || !Array.isArray(q.jobs) || q.totalJobs!==q.jobs.length) throw new Error('invalid Query Layer');
+          const forbidden=['matchScore','match_score','capabilityScore','capability','careerFit','career_fit','decisionScore','decision_score','decisionBucket','decision_bucket','grade','recommendation'];
+          for(const [i,j] of q.jobs.entries()) for(const k of forbidden) if(Object.prototype.hasOwnProperty.call(j,k)) throw new Error(`upstream decision leak ${k} @${i}`);
+          console.log(`PASS Query Layer jobs=${q.totalJobs}`);
+          NODE
       - name: Verify declared risk sources exist upstream
         shell: bash
         run: |
           set -euo pipefail
           node -e '
             const c = require("./risk-intelligence.json");
-            const PREFIX = "https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/";
             for (const s of c.riskSources.sources) {
               for (const u of s.urls) {
                 const m = String(u).match(/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/(.+)$/);
-                if (!m) { console.log("SKIP " + s.exportName + " (非 raw 地址) " + u); continue; }
+                if (!m) continue;
                 console.log("PATH\t" + s.exportName + "\t" + m[1]);
               }
             }
           ' | while IFS=$'\t' read -r tag name rel; do
             [ "$tag" = "PATH" ] || continue
-            if [ -f "AI_Job/$rel" ]; then
-              echo "PASS: $name -> AI_Job/$rel"
-            else
-              echo "::error::$name 声明的上游文件不存在：AI_Job/$rel"
-              exit 1
-            fi
+            [ -f "AI_Job/$rel" ] && echo "PASS: $name -> AI_Job/$rel" || { echo "::error::上游文件不存在：AI_Job/$rel"; exit 1; }
           done
           for n in companyRiskHistory priorityCompanyRiskHistory; do
-            grep -rq "export const $n" AI_Job/src/data/ 2>/dev/null \
-              && echo "PASS: 上游导出 $n 存在" \
-              || { echo "::error::上游找不到导出 $n"; exit 1; }
+            grep -rq "export const $n" AI_Job/src/data/ 2>/dev/null && echo "PASS: 上游导出 $n 存在" || { echo "::error::上游找不到导出 $n"; exit 1; }
           done
       - name: Calibrate against current live job pool
         run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
