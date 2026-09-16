@@ -1,0 +1,114 @@
+name: Verify risk intelligence contract
+
+# 本仓库的职责已收敛为「发布 risk-intelligence.json 契约 + 守住它与 scoring.js 不漂移」。
+# 看板（index.html / app-core.js / api/ 等）已摘除，原来的那些 UI 断言随之作废。
+# scoring.js 保留：它是契约的被校验方，也是 risk()/patchRisk() 的规则实现在哪里的证据。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'risk-intelligence.json'
+      - 'scoring.js'
+      - 'scripts/**'
+      - 'scoring-v1.1.test.js'
+      - 'scoring-v1.2.test.js'
+      - 'scoring-v1.3-quality.test.js'
+      - 'scoring-v1.4-industry.test.js'
+      - 'calibrate-v1.1.js'
+      - 'calibrate-v1.2.js'
+      - 'audit-intelligence-v1.3.cjs'
+      - 'audit-regression.cjs'
+      - '.github/workflows/contract-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'risk-intelligence.json'
+      - 'scoring.js'
+      - 'scripts/**'
+      - 'scoring-v1.1.test.js'
+      - 'scoring-v1.2.test.js'
+      - 'scoring-v1.3-quality.test.js'
+      - 'scoring-v1.4-industry.test.js'
+      - 'calibrate-v1.1.js'
+      - 'calibrate-v1.2.js'
+      - 'audit-intelligence-v1.3.cjs'
+      - 'audit-regression.cjs'
+      - '.github/workflows/contract-check.yml'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout contract repo
+        uses: actions/checkout@v4
+      - name: Checkout live job source
+        uses: actions/checkout@v4
+        with:
+          repository: lizhenhai2024-alt/AI_Job
+          path: AI_Job
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check kernel syntax
+        run: node --check scoring.js
+      # 看板摘除后，scoring.js 是唯一还在被校验的实现，必须是自洽的内核：
+      # 不能反向依赖任何已删除的 UI/展示层文件，否则它就悄悄变成了半截工具。
+      - name: Verify kernel is self-contained
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          for dep in career-fit career-personalization company-hc-salary logic-correctness app-core shortlist yingzhuan-jobs; do
+            if grep -q "$dep" scoring.js; then
+              echo "::error::scoring.js 反向依赖了已摘除的 UI 模块：$dep"
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ] && echo "PASS: scoring.js 不依赖任何已摘除的 UI 模块"
+          exit "$fail"
+      - name: Verify contract matches scoring.js
+        run: node scripts/check-risk-contract.cjs
+      - name: Run scoring boundary tests
+        run: |
+          node scoring-v1.1.test.js
+          node scoring-v1.2.test.js
+          node scoring-v1.3-quality.test.js
+          node scoring-v1.4-industry.test.js
+      # 契约里声明的风险源 URL 必须在上游真的存在，否则下游拿到的是 404。
+      # 这一步把「契约 → 上游文件」这一段也纳入 CI，而不是等 CareerPilot 刷新时才炸。
+      - name: Verify declared risk sources exist upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e '
+            const c = require("./risk-intelligence.json");
+            const PREFIX = "https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/";
+            for (const s of c.riskSources.sources) {
+              for (const u of s.urls) {
+                const m = String(u).match(/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/(.+)$/);
+                if (!m) { console.log("SKIP " + s.exportName + " (非 raw 地址) " + u); continue; }
+                console.log("PATH\t" + s.exportName + "\t" + m[1]);
+              }
+            }
+          ' | while IFS=$'\t' read -r tag name rel; do
+            [ "$tag" = "PATH" ] || continue
+            if [ -f "AI_Job/$rel" ]; then
+              echo "PASS: $name -> AI_Job/$rel"
+            else
+              echo "::error::$name 声明的上游文件不存在：AI_Job/$rel"
+              exit 1
+            fi
+          done
+          for n in companyRiskHistory priorityCompanyRiskHistory; do
+            grep -rq "export const $n" AI_Job/src/data/ 2>/dev/null \
+              && echo "PASS: 上游导出 $n 存在" \
+              || { echo "::error::上游找不到导出 $n"; exit 1; }
+          done
+      - name: Calibrate against current live job pool
+        run: node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
+      - name: Audit S-A-B intelligence coverage
+        run: node audit-intelligence-v1.3.cjs AI_Job
+      - name: Regression audit - language gate & translation scoring
+        run: node audit-regression.cjs AI_Job
