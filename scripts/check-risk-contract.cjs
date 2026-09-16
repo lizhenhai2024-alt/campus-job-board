@@ -8,6 +8,12 @@
  *
  * 断言的是"规则集合一致"，不是"实现方式一致"：只要 scoring.js 的
  * add('label',n)、分句条件、patchRisk 分支与契约对得上就算通过。
+ *
+ * 看板（index.html / app-core.js / api/ 等）摘除后，本脚本是仓库里唯一还在跑的
+ * 校验，也是 campus 这个仓库存在的理由。它现在有两半：
+ *   1-4) 契约的规则/上限/后处理 vs scoring.js 的 risk()/patchRisk()  —— 防漂移
+ *   5)   契约自身的完整性（风险源 URL、证据等级、正则可编译）        —— 自洽
+ * 注意 scoring.js 是**被校验方**，不要为了方便去改它的规则实现。
  */
 const fs = require('fs');
 const path = require('path');
@@ -83,31 +89,50 @@ for (const { pattern } of post.foreignWorkLocation.titleMatch) {
   check(flat.includes(squash(pattern)), '契约的 foreignWorkLocation.titleMatch 与 scoring.js 对不上');
 }
 
-// ---- 5) 风险源与证据等级 ----
-const sourcesBody = (scoring.match(/const RISK_SOURCES=\[[\s\S]*?\];/) || [''])[0];
-const coreSrc = fs.existsSync(path.join(root, 'app-core.js'))
-  ? (fs.readFileSync(path.join(root, 'app-core.js'), 'utf8').match(/const RISK_SOURCES=\[[\s\S]*?\];/) || [''])[0]
-  : '';
-const sourceText = sourcesBody || coreSrc;
-check(sourceText, '找不到 RISK_SOURCES 声明（scoring.js / app-core.js 都没有）');
-for (const src of contract.riskSources.sources) {
-  for (const url of src.urls) {
-    check(sourceText.includes(url),
-      `风险源 ${src.exportName} 的 URL 不在 RISK_SOURCES 里：${url}`);
-    check(flat.includes(squash(url)) || sourceText.includes(url),
-      `风险源 URL 未在代码中出现：${url}`);
+// ---- 5) 风险源与证据等级：契约自校验 ----
+//
+// 这一段原先对照 app-core.js 里的 RISK_SOURCES / validRiskEvent 常量。看板摘除后
+// 那份常量随之删除（它只服务于看板 UI），本段改成校验契约自身的完整性——
+// 契约现在是这些字段的唯一载体，下游（CareerPilot）直接照着它取 URL 和白名单，
+// 所以它必须是自洽的，且不能出现"两边都没有"的空档。
+const KNOWN_EXPORTS = new Set(['companyRiskHistory', 'priorityCompanyRiskHistory']);
+const sources = contract.riskSources.sources;
+check(sources.length >= 2, `风险源应至少声明 2 个，实际 ${sources.length}`);
+for (const src of sources) {
+  check(KNOWN_EXPORTS.has(src.exportName),
+    `风险源 exportName 不是已知的上游导出：${src.exportName}`);
+  check(Array.isArray(src.urls) && src.urls.length > 0,
+    `风险源 ${src.exportName} 没有声明任何 URL`);
+  for (const url of src.urls || []) {
+    check(/^https:\/\//.test(String(url)),
+      `风险源 ${src.exportName} 的 URL 必须是 https：${url}`);
   }
 }
-const levels = Object.keys(contract.riskEventRules.evidenceLevels);
+
+const ev = contract.riskEventRules;
+const levels = Object.keys(ev.evidenceLevels);
 check(levels.join('') === 'ABCD', `证据等级应为 ABCD，实际 ${levels.join('')}`);
-// 按行匹配：函数体里含 /^\d{4}-\d{2}-\d{2}$/ 这类正则字面量，
-// 用 [\s\S]*?\} 会被其中的 {4} 提前截断。validRiskEvent 是一行定义的。
-const validEventBody = (scoring.match(/function validRiskEvent[^\n]*/) || [''])[0]
-  || (fs.existsSync(path.join(root, 'app-core.js'))
-    ? (fs.readFileSync(path.join(root, 'app-core.js'), 'utf8').match(/function validRiskEvent[^\n]*/) || [''])[0]
-    : '');
-check(validEventBody.includes("'A','B','C','D'"),
-  'validRiskEvent 的等级白名单与契约的 ABCD 不一致');
+for (const [level, meta] of Object.entries(ev.evidenceLevels)) {
+  check(typeof meta.display === 'boolean', `证据等级 ${level} 缺 display 布尔值`);
+  check(typeof meta.highTrust === 'boolean', `证据等级 ${level} 缺 highTrust 布尔值`);
+}
+// "未经核实传闻默认隐藏" 是对下游的明确承诺，不能悄悄改成展示。
+check(ev.evidenceLevels.D.display === false, 'D 级必须 display:false（默认隐藏）');
+for (const level of ev.highRiskLevels || []) {
+  check(levels.includes(level), `highRiskLevels 里的 ${level} 不在证据等级中`);
+}
+check(Array.isArray(ev.requiredFields) && ev.requiredFields.length > 0,
+  'riskEventRules.requiredFields 不能为空');
+check(Array.isArray(ev.typeDomain) && ev.typeDomain.length > 0,
+  'riskEventRules.typeDomain 不能为空');
+// 下游会用这两个正则判定事件合法性；编译不过就等于契约不可用。
+for (const key of ['dateFormat', 'sourceUrlFormat']) {
+  try {
+    new RegExp(ev[key]);
+  } catch (e) {
+    check(false, `riskEventRules.${key} 不是合法正则：${e.message}`);
+  }
+}
 
 // ---- 输出 ----
 if (failures.length) {
