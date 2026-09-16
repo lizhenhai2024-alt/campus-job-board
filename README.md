@@ -2,55 +2,73 @@
 
 本仓库现在的职责是**发布并守住一份对下游的风险情报契约**。
 
-原来的 Web 看板（`index.html` / `app.js` / `app-core.js` / `api/` / Career Fit 展示层）已摘除。
-看板下线不影响本仓库的存在理由：下游消费的是 `risk-intelligence.json`，从来不是那个网页。
+原来的 Web 看板已摘除。候选人的最终 Eligibility、Match、Capability、Career Fit、Competition、Offer Reachability、Company Top-3 与投递建议统一由 `CareerPilot` 计算；`AI_Job` 只提供岗位事实与证据。
 
 ## 仓库里现在有什么
 
 | 文件 | 角色 |
 |---|---|
-| `risk-intelligence.json` | **对外契约**。岗位风险规则、海外工作地点后处理、风险源声明、证据等级语义 |
-| `scoring.js` | **被校验的规则实现**。契约里的每条规则在这里都有 `risk()` / `patchRisk()` 的对应实现 |
-| `scripts/check-risk-contract.cjs` | 断言上面两者一致 + 契约自身自洽（CI 主检查） |
-| `scoring-v1.*.test.js` | 内核打分边界测试 |
-| `calibrate-v1.*.js` / `audit-*.cjs` | 无头工具：拿 AI_Job 真实岗位池校准与回归 |
-
-契约独立于任何展示层，所以看板摘除后这条链路照常成立。
+| `risk-intelligence.json` | **对外契约**：岗位风险规则、海外工作地点后处理、风险源声明、证据等级语义 |
+| `scoring.js` | **被校验的历史兼容实现**：契约规则在这里有对应实现；不是当前候选人最终排序引擎 |
+| `scripts/check-risk-contract.cjs` | 断言风险契约与实现一致 |
+| `scoring-v1.*.test.js` | 历史内核边界回归测试 |
+| `calibrate-v1.*.js` / `audit-*.cjs` | 无头校准/审计工具 |
+| `决策边界_竞争强度与Offer可达性_V3.md` | 说明本仓库与 CareerPilot V3 决策层的边界 |
 
 ## 谁在消费
 
-`CareerPilot/campus_risk.py` 按版本拉取本契约来算岗位风险扣分，不再手抄正则。
-公司历史风险事件的底层证据库在 `AI_Job`，契约的 `riskSources` 声明了它的地址。
+`CareerPilot/campus_risk.py` 按版本拉取 `risk-intelligence.json`，公司历史风险底层证据在 `AI_Job`。
+
+数据职责固定为：
+
+```text
+AI_Job：岗位事实 / JD证据 / 薪资 / HC / 来源
+    ↓
+CareerPilot：候选人最终决策
+    ↑
+campus-job-board：风险情报契约
+```
+
+## 竞争强度与 Offer 可达性不是“风险扣分”
+
+以下信息**不得**加入 `risk-intelligence.json` 的风险扣分：
+
+- “专业不限”导致候选池更宽；
+- 岗位热门、名企热门；
+- 招聘人数多或少；
+- 预计候选人背景强；
+- 候选人缺少 GMV/ROI、PR/KOL、SQL/Python 等直接业务证据。
+
+原因：这些都是**候选人决策层**的竞争/证据判断，不是招聘风险事件。它们由 CareerPilot 独立计算，不能污染 Capability/Career Fit，也不能和驻外、强销售 KPI、收费培训等风险混成一个扣分。
+
+特别规则：只有 AI_Job 明确标注 `headcount.scope='job'` 的官方岗位级 HC 才可作为 CareerPilot 的上下文信息；`scope='program'` 永远不能当作岗位 HC，HC 未披露也不能算负面。
 
 ## 改一条风险规则
 
-契约是**对外承诺**，`scoring.js` 是内部实现，两者必须同时改，否则 CI 会红：
+契约是对外承诺，`scoring.js` 是被校验实现，两边必须同步：
 
-1. 改 `scoring.js` 里 `risk()` / `patchRisk()` 的实现
-2. 同步改 `risk-intelligence.json` 里对应的 `deduction` / `pattern`
-3. `node scripts/check-risk-contract.cjs` 应在改完两边后通过
+1. 修改 `scoring.js` 中对应风险实现；
+2. 同步修改 `risk-intelligence.json`；
+3. 运行 `node scripts/check-risk-contract.cjs`；
+4. 再跑 `scoring-v1.*.test.js` / audit 回归。
 
-CI 会双向比对：契约里有的规则 `scoring.js` 里必须有，`scoring.js` 里有的契约里也必须有，
-正则逐字比对，扣分上限和后处理分支同样比对。漂移过一次（下游手抄的 Python 正则静默过时），
-所以这道检查是刻意的。
-
-> `scoring.js` 是**被校验方**。不要为了让它"通过"而改它的规则实现——要改的是两边一起。
+> 不要为了让测试“通过”而把候选人竞争、Offer 可达性塞入风险层。V3 的最终决策只在 CareerPilot 中存在。
 
 ## 证据等级
 
-公司历史风险事件按 A/B/C/D 分级：A（一手材料）、B（权威转述）高可信；C（社区线索）只作线索；
-D（未经核实）**默认隐藏**。契约里的 `evidenceLevels.D.display = false` 是对下游的明确承诺，CI 断言它。
-
-公司历史风险不自动降低 Candidate Fit，也不形成公司黑名单。
+公司历史风险事件按 A/B/C/D 分级：A（一手材料）、B（权威转述）高可信；C（社区线索）只作线索；D（未经核实）默认隐藏。公司历史风险不自动降低 Candidate Fit，也不形成公司黑名单。
 
 ## 本地验证
 
 ```bash
 node scripts/check-risk-contract.cjs
-node scoring-v1.1.test.js   # 另有 v1.2 / v1.3-quality / v1.4-industry
+node scoring-v1.1.test.js
+node scoring-v1.2.test.js
+node scoring-v1.3-quality.test.js
+node scoring-v1.4-industry.test.js
 ```
 
-内核相关的集成检查需要一份 AI_Job checkout：
+需要真实岗位池时再运行：
 
 ```bash
 node calibrate-v1.2.js AI_Job/src/data/live-jobs.js
@@ -58,7 +76,6 @@ node audit-regression.cjs AI_Job
 node audit-intelligence-v1.3.cjs AI_Job
 ```
 
-## 历史
+## 历史文件
 
-评分规则的设计依据保留在 `评价规则_*.md` 与 `情报层规则_*.md`；
-`docs/投递清单_2027届_收窄版.md` 是个人投递清单，可用 `scripts/build-shortlist.cjs` 重新生成。
+`评价规则_*.md`、`docs/投递清单_*.md` 等保留用于历史追溯和校准。它们不能覆盖当前三库职责契约；最终候选人决策以 CareerPilot 当前规则为准。
