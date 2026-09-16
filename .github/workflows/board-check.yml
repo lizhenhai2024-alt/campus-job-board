@@ -100,6 +100,10 @@ jobs:
           node --check calibrate-v1.2.js
           node --check audit-intelligence-v1.3.cjs
           node --check audit-regression.cjs
+      # risk-intelligence.json 是对下游（CareerPilot）的对外契约，scoring.js 是内部实现。
+      # 两者漂移过一次（下游手抄的 Python 正则漏掉了 patchRisk 的海外分支），且不报错。
+      - name: Verify risk intelligence contract
+        run: node scripts/check-risk-contract.cjs
       - name: Run scoring boundary tests
         run: |
           node scoring-v1.1.test.js

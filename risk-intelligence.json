@@ -1,0 +1,128 @@
+{
+  "$comment": "campus-job-board -> 下游（CareerPilot）的风险情报契约。这是对外承诺的稳定接口；scoring.js 的内部实现可以变，但改规则必须同步改这里，由 scripts/check-risk-contract.cjs 在 CI 里强制。规则语义与 scoring.js 的 risk() 逐字一致。",
+  "version": "1.0.0",
+  "updatedAt": "2026-09-16",
+  "jobRiskRules": {
+    "$comment": "岗位风险扣分。deduction 与 Candidate Fit 分离，不形成公司黑名单。scope 决定匹配方式：text=整段文本；clause=按 clauseSplit 切分后逐句匹配；city=结构化字段比对。",
+    "deductionCap": 35,
+    "clauseSplit": "[。；;，,\\n]",
+    "rules": [
+      {
+        "label": "长期派驻/驻外",
+        "deduction": 15,
+        "scope": "text",
+        "match": [
+          { "pattern": "长期驻外|长期派驻|长期海外|常驻海外|派驻.*海外|派驻.*非洲|驻外|长期外派|接受外派|海外常驻|需.{0,2}赴海外|跨境出差|国际出差|驻派|海外派遣|外派海外" }
+        ]
+      },
+      {
+        "label": "高频出差",
+        "deduction": 8,
+        "scope": "text",
+        "match": [
+          { "pattern": "(频繁|高频次?|大量|经常).{0,4}出差|出差.{0,4}(频繁|高频)|接受海外出差|海外出差|出差海外|需.{0,3}出差" }
+        ]
+      },
+      {
+        "label": "强销售KPI",
+        "deduction": 10,
+        "scope": "text",
+        "match": [
+          { "pattern": "销售KPI|销售指标|业绩指标|销售业绩|销售目标|经营目标.{0,20}(负|达成|负责)|销售任务" }
+        ]
+      },
+      {
+        "label": "高压/高强度",
+        "deduction": 5,
+        "scope": "text",
+        "match": [
+          { "pattern": "高压|高强度|节奏快|抗压能力强" }
+        ]
+      },
+      {
+        "label": "专业背景竞争劣势",
+        "$comment": "JD 明确要求商科/市场/国贸等专业（无「优先/加分/相关/或/等」限定）时，英语专业候选人存在竞争劣势。软偏好不触发——英语＋实习可补偿。同一分句内出现 exclude 任一则整条不计。",
+        "deduction": 8,
+        "scope": "clause",
+        "match": [
+          { "pattern": "(商科|市场营销|国际贸易|国际商务|经济学|管理学|工商管理)\\s*(专业|背景|学历)" }
+        ],
+        "exclude": [
+          { "pattern": "优先|加分|相关|或|等" }
+        ]
+      },
+      {
+        "label": "关键技能需补足",
+        "$comment": "技能词与软性标记必须在同一分句内同时出现，避免跨句虚假关联（如「数据敏感度优先。」＋「须精通 SQL。」被整体匹配误判成软性加分）。requireAll=true 表示 match 里每条都要在同一分句命中。",
+        "deduction": 8,
+        "scope": "clause",
+        "requireAll": true,
+        "match": [
+          { "pattern": "(SQL|Python|编程)", "flags": "i" },
+          { "pattern": "(优先|加分|了解|熟悉者优先)", "flags": "i" }
+        ]
+      },
+      {
+        "label": "城市非目标城市",
+        "$comment": "目标城市列表属于候选人画像，不在本契约里定义；下游用各自画像的 targetCities 做包含判断。城市为「全国」时不计。",
+        "deduction": 5,
+        "scope": "city"
+      }
+    ]
+  },
+
+  "riskPostAdjustments": {
+    "$comment": "scoring.js 的 patchRisk 在基础规则之上做的一步修正：判定为海外工作地点时，城市项不再成立（人本来就不在国内），改为记一条海外地点风险。二者是同一件事的两种表述，不能叠加。下游若只实现 jobRiskRules 而漏掉这一段，会与看板口径不一致。",
+    "foreignWorkLocation": {
+      "$comment": "city 有值且不是占位符时看 city，否则看 title。",
+      "cityPlaceholders": "^(待核|未知|全国|不限|-)$",
+      "cityMatch": [
+        { "pattern": "国外|Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|Seattle|United States|USA|\\bUS\\b|Turkey|United Kingdom|\\bUK\\b|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|New Zealand|Poland|Czech|Hungary|Romania|UAE|Saudi|India|Chile|Peru|Colombia|Argentina|South Africa|Egypt|Kenya|Nigeria|德国|荷兰|墨西哥|菲律宾|迪拜|巴西|加拿大|瑞典|美国|土耳其|英国|法国|西班牙|意大利|日本|韩国|泰国|越南|印尼|马来西亚|新加坡|澳大利亚|新西兰|波兰|捷克|匈牙利|罗马尼亚|阿联酋|沙特|印度|智利|秘鲁|哥伦比亚|阿根廷|南非|埃及|肯尼亚|尼日利亚|杜塞尔多夫|鹿特丹|墨西哥城|马尼拉|圣保罗|温哥华|松德比贝里|西雅图|巴尔韦伦", "flags": "i" }
+      ],
+      "titleMatch": [
+        { "pattern": "(?:-|–|—|\\(|（)\\s*(Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|Seattle|US|USA|Turkey|UK|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Indonesia|Malaysia|Singapore|Australia|New Zealand|Poland|Czech|Hungary|Romania|UAE|Saudi|India|德国|荷兰|墨西哥|菲律宾|迪拜|巴西|加拿大|瑞典|美国|土耳其|英国|法国|西班牙|意大利|日本|韩国|泰国|越南|印尼|马来西亚|新加坡|澳大利亚|新西兰)\\s*(?:\\)|）|$)|(?:工作地|工作地点|base|location)\\s*[:：]?\\s*(国外|海外|Germany|Netherlands|Mexico|Philippines|Dubai|Brazil|Canada|Sweden|US|USA|Turkey|UK|France|Spain|Italy|Japan|Korea|Thailand|Vietnam|Singapore)", "flags": "i" }
+      ]
+    },
+    "removeLabels": ["城市非目标城市"],
+    "add": { "label": "长期海外工作地点", "deduction": 15 },
+    "addUnlessLabelMatches": [
+      { "pattern": "长期派驻|长期驻外|长期海外|海外工作地点" }
+    ]
+  },
+
+  "riskSources": {
+    "$comment": "公司历史风险的底层证据库。原先由下游正则抓取 app-core.js 的 RISK_SOURCES 常量得到，改为在此显式声明——去掉看板后这条链路仍需成立。",
+    "sources": [
+      {
+        "exportName": "companyRiskHistory",
+        "urls": [
+          "https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-risk-history.js",
+          "https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-risk-history.js"
+        ]
+      },
+      {
+        "exportName": "priorityCompanyRiskHistory",
+        "urls": [
+          "https://raw.githubusercontent.com/lizhenhai2024-alt/AI_Job/main/src/data/company-risk-history-priority.js",
+          "https://cdn.jsdelivr.net/gh/lizhenhai2024-alt/AI_Job@main/src/data/company-risk-history-priority.js"
+        ]
+      }
+    ]
+  },
+
+  "riskEventRules": {
+    "$comment": "公司历史风险事件的合法性判定与展示分级。字段缺失或不合法的事件一律丢弃，不做推断。",
+    "requiredFields": ["id", "type", "date", "source", "sourceUrl", "evidenceLevel"],
+    "dateFormat": "^\\d{4}-\\d{2}-\\d{2}$",
+    "sourceUrlFormat": "^https?://",
+    "typeDomain": ["layoff", "restructuring", "intern_conversion", "offer_change", "work_intensity", "compensation"],
+    "evidenceLevels": {
+      "A": { "label": "一手材料", "meaning": "公司/监管/法院等一手材料", "display": true, "highTrust": true },
+      "B": { "label": "权威转述", "meaning": "权威媒体或公司回应", "display": true, "highTrust": true },
+      "C": { "label": "社区线索", "meaning": "可追溯社区经验，只作线索", "display": true, "highTrust": false },
+      "D": { "label": "未核实", "meaning": "未经核实传闻，默认隐藏", "display": false, "highTrust": false }
+    },
+    "highRiskLevels": ["A", "B"],
+    "$note": "公司历史风险不自动降低 Candidate Fit，也不形成公司黑名单。"
+  }
+}
