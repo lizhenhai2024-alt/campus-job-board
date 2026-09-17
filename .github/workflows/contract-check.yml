@@ -1,11 +1,13 @@
 name: Verify risk intelligence contract
 
-# 本仓库负责决策/评分契约；AI_Job 只提供岗位事实。
+# 本仓库只负责风险情报契约；候选人最终决策统一由 CareerPilot 负责。
 on:
   push:
     branches: [main]
     paths:
       - 'risk-intelligence.json'
+      - 'README.md'
+      - 'LEGACY_COMPATIBILITY.md'
       - 'scoring.js'
       - 'query-layer-adapter.js'
       - 'query-layer-adapter.test.js'
@@ -23,6 +25,8 @@ on:
     branches: [main]
     paths:
       - 'risk-intelligence.json'
+      - 'README.md'
+      - 'LEGACY_COMPATIBILITY.md'
       - 'scoring.js'
       - 'query-layer-adapter.js'
       - 'query-layer-adapter.test.js'
@@ -57,6 +61,21 @@ jobs:
           node --check scoring.js
           node --check query-layer-adapter.js
           node --check query-layer-adapter.test.js
+      - name: Verify governance boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'CareerPilot' README.md
+          grep -q 'V4.1' README.md
+          grep -q 'legacy / compatibility' LEGACY_COMPATIBILITY.md
+          node - <<'NODE'
+          const c=require('./risk-intelligence.json');
+          const forbidden=['matchScore','match_score','capabilityScore','careerFit','career_fit','competitionScore','offerReachability','offer_reachability','decisionScore','decision_score','decisionBucket','decision_bucket','recommendation'];
+          for(const k of forbidden){
+            if(Object.prototype.hasOwnProperty.call(c,k)) throw new Error(`risk contract leaked candidate decision field: ${k}`);
+          }
+          console.log('PASS: campus remains risk-contract only');
+          NODE
       - name: Verify kernel is self-contained
         shell: bash
         run: |
